@@ -2,48 +2,42 @@
 
 A self-hosted, single-user app for working out what takes up the space in a shed or back room: items are entered on a phone with a size and nested tags. A Go server with SQLite serves an embedded React client, in one Docker image on the LAN-only homelab. `SPEC.md` is the spec.
 
-**Read `CONTEXT.md` before any work.** It is the domain glossary. Use its terms in code, API, UI copy, tests and tickets, and never the words listed under _Avoid_ ("dimension" is a top-level tag such as Location, so never use it for an item's physical size). If a term is missing or no longer fits, raise it with the user rather than inventing one.
-
-Before building significant new behaviour or a new feature, run the `/domain-modeling` skill: it sharpens the terms the work introduces in `CONTEXT.md` and records any hard-to-reverse decision as an ADR.
-
-When `SPEC.md`, a ticket and `CONTEXT.md` disagree, `CONTEXT.md` wins on terms, the ticket wins on behaviour, and `SPEC.md` fills the gaps. Mention each disagreement you resolve in the commit message.
-
 ## Commands
 
-`make dev` (Go on :8080, Vite on :5173 proxying `/api`), `make test` (Go with `-race`, then Vitest), `make e2e` (builds, then Playwright) and `make build` (`bin/shelf-organiser` with the client embedded); every environment variable is in `.env.example`. As each ticket lands, record here the commands and gotchas a look at the `Makefile` wouldn't reveal.
+Run everything through the `Makefile`:
 
-- **API changes start in `apps/server/openapi/openapi.yaml`.** `make generate` rewrites the committed `apps/server/internal/api/api.gen.go` and `apps/web/src/api/schema.gen.ts`; commit all three together.
-- **The e2e suite refuses a stale binary:** `test/e2e/playwright.config.ts` fails if any file under `apps/` is newer than `bin/shelf-organiser`, so run `make e2e` (or `make build` first). It starts the binary on :8181 with `APP_TEST_MODE=1` and a fresh temp `DATA_DIR`, and every spec imports `test` from `test/e2e/fixtures/test.ts`, which resets the database before each test. Seed through `test/e2e/fixtures/api.ts`.
-- **Smoke against the image:** `make docker`, `docker run --rm -p 8080:8080 shelf-organiser`, then `make smoke` (the `@smoke` tests, which leave no data behind).
-- **First Playwright run in a fresh sandbox:** `npx playwright install chromium` and `sudo npx playwright install-deps chromium` from `test/e2e`.
-- **TypeScript is pinned to 6.0:** typescript-eslint and openapi-typescript don't support 7 yet.
-- **The server answers 503 on `/`** until the client is built, because a fresh clone embeds only `apps/web/dist/.gitkeep`.
-- **SQLite** files belong in a temp dir (tests) or a data dir outside the repo. The repo sits on a host mount, where SQLite can report disk I/O or locking errors; `make dev` uses `~/.local/share/shelf-organiser`.
-- **Viewing the app** in this sandbox: start `make dev` as a background task, and wait until `http://localhost:8080/healthz` returns 200 and `http://localhost:5173` loads. Then ask the user to run `sbx ports <sandbox-name> --publish 5173:5173` on their host, with the name from `$SANDBOX_NAME`. Client changes reload live; restart after a Go change. Stop the task when asked.
+- `make check`: `make lint` (gofmt, go vet, ESLint, both typechecks) then `make test`. Run before every commit.
+- `make test`: unit tests only.
+- `make e2e`: builds `bin/shelf-organiser`, then runs Playwright (`api` and Pixel 7 `ui` projects) against it on :8181.
+- `make docker`: builds the image. `make smoke` runs the `@smoke` tests against `docker run --rm -p 8080:8080 shelf-organiser`.
+- `make dev`: Go on :8080 and Vite on :5173 (proxying `/api`). `make generate` after editing the OpenAPI spec.
 
-## Invariants
+Gotchas:
 
-- **Tags form one tree:** sibling names are unique ignoring case, and a tag can't be moved inside itself or its descendants (`UpdateTag` refuses; `store_test.go` covers it). Names can't contain `/` or `›`, because those are how a tag path is typed and shown.
-- **Deleting a tag deletes its subtree;** items stay and only lose those tags (foreign-key cascades in `00001_init.sql`). The UI confirms first and names how many sub-tags go with it.
-- **Deleting an item offers Undo** by re-creating it from the deleted copy, so item delete has no confirmation.
-- **Items store litres per unit;** total space is litres × quantity, and the item list is sorted by it. Size presets live only in `apps/web/src/items/size.ts` and are never stored.
-- **Item writes take tag paths,** and the server creates any missing tags and ancestors in the same transaction, so a rejected item leaves no stray tags.
-- **Test-only routes** (`POST /api/test/reset`) exist only with `APP_TEST_MODE=1`; `main_test.go` proves they 404 otherwise.
-- **Scope:** build for exactly one user on a LAN, with no auth and nothing hosting- or ingress-related.
+- **The e2e suite refuses a stale binary:** it fails if any file under `apps/` is newer than `bin/shelf-organiser`, so use `make e2e`, not `pnpm test` in `test/e2e`.
+- **First Playwright run in a fresh sandbox:** from `test/e2e`, `npx playwright install chromium` then `sudo npx playwright install-deps chromium`.
+- **SQLite** files belong in a temp dir or outside the repo, which sits on a host mount where SQLite can report I/O or locking errors; `make dev` uses `~/.local/share/shelf-organiser`.
+- **Viewing the app:** run `make dev` in the background, wait for `http://localhost:8080/healthz`, then ask the user to run `sbx ports <sandbox-name> --publish 5173:5173` on their host (name from `$SANDBOX_NAME`).
 
-## UI
+## Layout
 
-Follow the `homelab-frontend` skill. In this repo: components are in `apps/web/src/components/`, the catalogue page is `apps/web/src/dev/ComponentsPage.tsx` at `/dev/components` (`catalogue.test.ts` fails when a component is missing), and the tokens are in `apps/web/src/index.css`. Phone first: check every screen at 390 px wide, and keep touch targets at `min-h-touch`.
+- `apps/server/openapi/openapi.yaml`: the hand-written API spec, source of truth for both sides. `make generate` rewrites the committed `apps/server/internal/api/api.gen.go` and `apps/web/src/api/schema.gen.ts`; commit all three together.
+- `apps/server/cmd/shelf-organiser/`: `main.go` with the testable `run()`, and `main_test.go` app tests through it.
+- `apps/server/internal/`: `config` (env), `store` (SQLite, goose migrations in `store/migrations/`, all queries), `api` (handlers for the generated strict interface), `web` (serves the embedded client).
+- `apps/web/src/`: `pages/` arrange `components/`; logic lives in `items/` and `tags/` with `*.test.ts` beside it; `api/` holds the client and one TanStack Query hooks file per resource.
+- `test/e2e/`: Playwright. Every spec imports `test` from `fixtures/test.ts` (resets the database before each test) and seeds through `fixtures/api.ts`.
+
+## Conventions
+
+- **Read `CONTEXT.md` first** and use its terms in code, API, UI copy and tests, never its _Avoid_ words ("dimension" is a top-level tag such as Location, never an item's physical size).
+- **Go and frontend house rules** are the `homelab-go-service`, `homelab-frontend` and `homelab-testing` skills. Here the tokens are in `apps/web/src/index.css` and the catalogue is `/dev/components` (`catalogue.test.ts` fails when a component is missing from it). Check screens at 390 px.
+- **Tags form one tree:** sibling names are unique ignoring case, a tag can't move inside its own subtree, and names can't contain `/` or `›` (how paths are typed and shown). `store_test.go` covers these.
+- **Deleting a tag deletes its subtree;** items stay and lose those tags. The UI confirms first. Deleting an item instead offers Undo.
+- **Items store litres per unit;** total space is litres × quantity. Size presets live only in `apps/web/src/items/size.ts` and are never stored.
+- **Item writes take tag paths;** the server creates missing tags in the same transaction, so a rejected item leaves no stray tags.
+- **Test-only routes** (`POST /api/test/reset`) exist only with `APP_TEST_MODE=1`; `main_test.go` proves they 404 otherwise. Every env var is in `.env.example` (`deploy_test.go` enforces it).
+- **Scope:** one user on a LAN, no auth, nothing hosting- or ingress-related.
 
 ## Done means
 
-All of these pass:
-
-```bash
-make check   # gofmt, go vet, both typechecks, ESLint
-make test
-make e2e
-make docker
-```
-
-Then prove the behaviour in the running app, not just in tests: open the changed screen at 390 px and at desktop width, and report what you checked. For container changes, `docker build` and run the image with only environment variables set.
+`make check`, `make e2e` and `make docker` pass, and you have opened the changed screen in the running app at 390 px and reported what you checked.

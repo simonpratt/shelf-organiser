@@ -2,7 +2,7 @@ APP := shelf-organiser
 # Dev data lives outside the repo: SQLite misbehaves on the sandbox's host mount.
 DEV_DATA_DIR ?= $(HOME)/.local/share/$(APP)
 
-.PHONY: install generate dev build test e2e smoke check docker
+.PHONY: install generate dev build lint test check e2e smoke docker
 
 install:
 	pnpm install --frozen-lockfile
@@ -36,8 +36,11 @@ e2e: build
 smoke:
 	APP_TEST_URL=http://localhost:8080 pnpm --filter ./test/e2e test --grep @smoke
 
-check:
-	test -z "$$(gofmt -l apps)"
+# The fast pre-commit gate: format, vet, lint, typecheck, then the unit tests.
+check: lint test
+
+lint:
+	@test -z "$$(gofmt -l apps)" || { gofmt -l apps; echo "run gofmt -w apps"; exit 1; }
 	go vet ./...
 	pnpm --filter ./apps/web typecheck
 	pnpm --filter ./apps/web lint
