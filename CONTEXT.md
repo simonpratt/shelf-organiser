@@ -46,6 +46,18 @@ _Avoid_: breadcrumb, full name
 A top-level tag, such as Location or Type, that groups one way of looking at the items.
 _Avoid_: root tag, axis, facet
 
+**Type dimension**:
+The dimension that says what kind of thing an item is, usually named Type; the only one Claude proposes tags in. Where things are is for the user to say.
+_Avoid_: category, classification
+
+**Proposed tag**:
+A tag Claude puts forward for an item, in the Type dimension, possibly one that doesn't exist yet ("New"). It is added only when the user accepts it.
+_Avoid_: suggestion (the tag field's autocomplete), auto-tag
+
+**Organise**:
+Asking Claude for a proposed tag for each item with none in the Type dimension, reviewing them together and applying the accepted ones in one go.
+_Avoid_: auto-categorise, sort, tidy
+
 **Untagged**:
 Items with no tag in the dimension being looked at, shown together as one block on the space map.
 _Avoid_: uncategorised, other
