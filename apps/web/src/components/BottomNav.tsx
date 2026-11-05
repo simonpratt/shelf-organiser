@@ -1,10 +1,11 @@
 // Bottom tab bar on the main screens, in thumb reach on a phone.
 import { NavLink } from "react-router";
 import { cx } from "../cx";
-import { BoxIcon, TagIcon } from "./icons";
+import { BoxIcon, MapIcon, TagIcon } from "./icons";
 
 const tabs = [
   { to: "/", label: "Items", icon: <BoxIcon />, end: true },
+  { to: "/space", label: "Space", icon: <MapIcon />, end: false },
   { to: "/tags", label: "Tags", icon: <TagIcon />, end: false },
 ];
 

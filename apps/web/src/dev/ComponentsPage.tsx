@@ -6,6 +6,7 @@ import { fromDraft } from "../items/drafts";
 import { ActionBar } from "../components/ActionBar";
 import { AppShell } from "../components/AppShell";
 import { Banner } from "../components/Banner";
+import { Breadcrumb } from "../components/Breadcrumb";
 import { BottomNav } from "../components/BottomNav";
 import { Button } from "../components/Button";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -13,7 +14,7 @@ import { Dialog } from "../components/Dialog";
 import { DraftCard } from "../components/DraftCard";
 import { EmptyState } from "../components/EmptyState";
 import { Fab } from "../components/Fab";
-import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, TagIcon } from "../components/icons";
+import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MapIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, TagIcon } from "../components/icons";
 import { ItemRow } from "../components/ItemRow";
 import { PageHeader } from "../components/PageHeader";
 import { QuantityStepper } from "../components/QuantityStepper";
@@ -21,12 +22,14 @@ import { SearchField } from "../components/SearchField";
 import { Select } from "../components/Select";
 import { SizePicker } from "../components/SizePicker";
 import { Skeleton } from "../components/Skeleton";
+import { SpaceRow } from "../components/SpaceRow";
 import { Spinner } from "../components/Spinner";
 import { TagChip } from "../components/TagChip";
 import { TagInput } from "../components/TagInput";
 import { TagTreeRow } from "../components/TagTreeRow";
 import { TextField } from "../components/TextField";
 import { Toast } from "../components/Toast";
+import { Treemap } from "../components/Treemap";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -73,7 +76,7 @@ export default function ComponentsPage() {
         <Button block size="lg" icon={<MicIcon />}>Large</Button>
       </Section>
       <Section title="icons">
-        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><ChevronIcon /><MicIcon /></div>
+        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><ChevronIcon /><MicIcon /><MapIcon /></div>
       </Section>
       <Section title="Spinner"><Spinner /><Spinner label="Saving…" /></Section>
       <Section title="TextField">
@@ -88,6 +91,7 @@ export default function ComponentsPage() {
       <Section title="SearchField"><SearchField label="Search" value={text} onChange={setText} placeholder="Search" /></Section>
       <Section title="Select">
         <Select label="Visible label" value="a" onChange={() => {}} options={[{ value: "a", label: "All tags" }]} />
+        <Select label="With hint" value="a" onChange={() => {}} options={[{ value: "a", label: "All tags" }]} hint="A hint below the select" />
         <Select label="Hidden label" hideLabel value="a" onChange={() => {}} options={[{ value: "a", label: "All tags" }]} />
       </Section>
       <Section title="SizePicker">
@@ -147,6 +151,23 @@ export default function ComponentsPage() {
           <TagTreeRow name="Shed" depth={1} itemCount={12} totalSpace={640} onSelect={() => {}} />
           <TagTreeRow name="Shelf 2" depth={2} itemCount={1} totalSpace={40} onSelect={() => {}} />
         </div>
+      </Section>
+      <Section title="Treemap">
+        <Treemap blocks={[
+          { key: "tag:1", kind: "tag", name: "Shed", litres: 640, share: "58%", to: "#" },
+          { key: "untagged", kind: "untagged", name: "Untagged", litres: 300, share: "27%", to: "#" },
+          { key: "item:1", kind: "item", name: "Bike", litres: 120, share: "11%", to: "#" },
+          { key: "item:2", kind: "item", name: "Lamp", litres: 40, share: "4%", to: "#" },
+          { key: "item:3", kind: "item", name: "Torch", litres: 2, share: "<1%", to: "#" },
+        ]} />
+      </Section>
+      <Section title="SpaceRow">
+        <SpaceRow to="#" kind="tag" name="Shed" litres={640} itemCount={12} share="58%" fraction={0.58} />
+        <SpaceRow to="#" kind="untagged" name="Untagged" litres={300} itemCount={1} share="27%" fraction={0.27} />
+        <SpaceRow to="#" kind="item" name="Torch" litres={2} itemCount={1} share="<1%" fraction={0.002} />
+      </Section>
+      <Section title="Breadcrumb">
+        <Breadcrumb trail={[{ key: "root", label: "Location", to: "#" }, { key: "tag:2", label: "Shed", to: "#" }, { key: "tag:3", label: "Shelf 2", to: "#" }]} />
       </Section>
       <Section title="BottomNav"><Frame><BottomNav /></Frame></Section>
       <Section title="Fab"><Frame><Fab to="#" label="Add item" icon={<PlusIcon />} /></Frame></Section>
