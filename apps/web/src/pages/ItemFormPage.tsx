@@ -1,0 +1,124 @@
+// Add or edit one item. Spec: T1 — fast entry on a phone: name, size preset
+// or litres, quantity, tags with inline path creation, note. Deleting offers
+// Undo rather than a confirmation, since it is cheap to reverse.
+import { useRef, useState, type FormEvent } from "react";
+import { useNavigate, useParams } from "react-router";
+import type { Item } from "../api/client";
+import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "../api/items";
+import { useTags } from "../api/tags";
+import { ActionBar } from "../components/ActionBar";
+import { AppShell } from "../components/AppShell";
+import { Banner } from "../components/Banner";
+import { Button } from "../components/Button";
+import { EmptyState } from "../components/EmptyState";
+import { PageHeader } from "../components/PageHeader";
+import { QuantityStepper } from "../components/QuantityStepper";
+import { SizePicker } from "../components/SizePicker";
+import { Skeleton } from "../components/Skeleton";
+import { TagInput } from "../components/TagInput";
+import { TextField } from "../components/TextField";
+import { useToast } from "../components/Toast";
+import { emptyForm, fromItem, toInput, type FormErrors, type ItemForm } from "../items/form";
+
+export function ItemFormPage() {
+  const { id } = useParams();
+  const items = useItems();
+  if (id === undefined) return <Editor />;
+  const item = items.data?.find((it) => String(it.id) === id);
+  return (
+    <AppShell nav={false}>
+      {items.isPending ? (
+        <><PageHeader title="Edit item" back={{ to: "/", label: "Back to items" }} /><Skeleton rows={4} label="Loading item" /></>
+      ) : items.isError ? (
+        <><PageHeader title="Edit item" back={{ to: "/", label: "Back to items" }} />
+          <Banner action={<Button onClick={() => items.refetch()}>Retry</Button>}>Couldn't load the item: {items.error.message}</Banner></>
+      ) : !item ? (
+        <><PageHeader title="Edit item" back={{ to: "/", label: "Back to items" }} />
+          <EmptyState title="Item not found" action={<Button to="/">Back to items</Button>}>It may have been deleted.</EmptyState></>
+      ) : (
+        <Editor key={item.id} item={item} />
+      )}
+    </AppShell>
+  );
+}
+
+function Editor({ item }: { item?: Item }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const tags = useTags();
+  const create = useCreateItem();
+  const update = useUpdateItem(item?.id ?? 0);
+  const remove = useDeleteItem();
+  const [form, setForm] = useState<ItemForm>(() => (item ? fromItem(item) : emptyForm()));
+  const [errors, setErrors] = useState<FormErrors>({});
+  const nameRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const [mode, setMode] = useState<"save" | "another">("save");
+  const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const save = item ? update : create;
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const another = (e.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "another";
+    setMode(another ? "another" : "save");
+    const { input, errors } = toInput(form);
+    setErrors(errors);
+    if (!input) return;
+    try {
+      const saved = await save.mutateAsync(input);
+      if (another) {
+        // Keep the tags: the next item is usually from the same shelf.
+        setForm(emptyForm(input.tags));
+        toast({ message: `Saved “${saved.name}”. Add the next one.` });
+        nameRef.current?.focus();
+      } else {
+        toast({ message: `Saved “${saved.name}”` });
+        navigate("/");
+      }
+    } catch {
+      // save.error is shown in the banner below
+    }
+  };
+
+  const onDelete = async () => {
+    if (!item) return;
+    try {
+      await remove.mutateAsync(item.id);
+    } catch {
+      return;
+    }
+    const restore = { name: item.name, litres: item.litres, quantity: item.quantity, note: item.note, tags: item.tags.map((t) => t.path) };
+    toast({
+      message: `Deleted “${item.name}”`,
+      action: { label: "Undo", onClick: () => create.mutate(restore, { onError: (err) => toast({ message: `Couldn't restore: ${err.message}` }) }) },
+    });
+    navigate("/");
+  };
+
+  const busy = save.isPending || remove.isPending;
+
+  const body = (
+    <form onSubmit={onSubmit} noValidate className="flex flex-1 flex-col gap-5">
+      <PageHeader title={item ? "Edit item" : "Add item"} back={{ to: "/", label: "Cancel and go back" }}
+        actions={item && <Button variant="danger" busy={remove.isPending} disabled={busy} onClick={onDelete}>Delete</Button>} />
+      <TextField ref={nameRef} label="Name" value={form.name} onChange={set("name")} error={errors.name}
+        autoFocus={!item} autoCapitalize="sentences" enterKeyHint="next" placeholder="e.g. Camping chairs" />
+      <SizePicker litres={form.litres} onChange={set("litres")} error={errors.litres} />
+      <QuantityStepper value={form.quantity} onChange={set("quantity")} error={errors.quantity} />
+      <TagInput value={form.tags} onChange={set("tags")} draft={form.tagDraft} onDraftChange={set("tagDraft")}
+        existing={(tags.data ?? []).map((t) => t.path)} />
+      <TextField label="Note (optional)" multiline value={form.note} onChange={set("note")} />
+      <div className="flex-1" />
+      {save.error && <Banner>Couldn't save: {save.error.message}</Banner>}
+      {remove.error && <Banner>Couldn't delete: {remove.error.message}</Banner>}
+      <ActionBar>
+        <Button type="submit" variant="primary" block busy={save.isPending && mode === "save"} disabled={busy}
+          value="save">Save</Button>
+        {!item && (
+          <Button type="submit" block busy={save.isPending && mode === "another"} disabled={busy}
+            value="another">Save and add another</Button>
+        )}
+      </ActionBar>
+    </form>
+  );
+  return item ? body : <AppShell nav={false}>{body}</AppShell>;
+}

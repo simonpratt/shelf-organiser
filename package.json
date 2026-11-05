@@ -1,0 +1,8 @@
+{
+  "name": "shelf-organiser",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "generate": "go generate ./... && pnpm --filter ./apps/web generate"
+  }
+}
