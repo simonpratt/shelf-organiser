@@ -19,3 +19,4 @@ export const SearchIcon = () => <Icon><circle cx="11" cy="11" r="7" /><path d="M
 export const BoxIcon = () => <Icon><path d="M3 7l9-4 9 4-9 4-9-4z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" /></Icon>;
 export const TagIcon = () => <Icon><path d="M3 12V3h9l9 9-9 9-9-9z" /><circle cx="7.5" cy="7.5" r="1.5" /></Icon>;
 export const ChevronIcon = () => <Icon><path d="M9 6l6 6-6 6" /></Icon>;
+export const MicIcon = () => <Icon><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></Icon>;

@@ -4,6 +4,7 @@ import { AppShell } from "./components/AppShell";
 import { Banner } from "./components/Banner";
 import { Button } from "./components/Button";
 import { EmptyState } from "./components/EmptyState";
+import { DictatePage } from "./pages/DictatePage";
 import { ItemFormPage } from "./pages/ItemFormPage";
 import { ItemsPage } from "./pages/ItemsPage";
 import { TagsPage } from "./pages/TagsPage";
@@ -17,6 +18,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<ItemsPage />} />
         <Route path="/items/new" element={<ItemFormPage />} />
+        <Route path="/items/dictate" element={<DictatePage />} />
         <Route path="/items/:id" element={<ItemFormPage />} />
         <Route path="/tags" element={<TagsPage />} />
         {ComponentsPage && (

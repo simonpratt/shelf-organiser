@@ -2,6 +2,7 @@
 // component with each of its variants. dev/catalogue.test.ts fails when a
 // component file is missing from here.
 import { useState, type ReactNode } from "react";
+import { fromDraft } from "../items/drafts";
 import { ActionBar } from "../components/ActionBar";
 import { AppShell } from "../components/AppShell";
 import { Banner } from "../components/Banner";
@@ -9,9 +10,10 @@ import { BottomNav } from "../components/BottomNav";
 import { Button } from "../components/Button";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Dialog } from "../components/Dialog";
+import { DraftCard } from "../components/DraftCard";
 import { EmptyState } from "../components/EmptyState";
 import { Fab } from "../components/Fab";
-import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MinusIcon, PlusIcon, SearchIcon, TagIcon } from "../components/icons";
+import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, TagIcon } from "../components/icons";
 import { ItemRow } from "../components/ItemRow";
 import { PageHeader } from "../components/PageHeader";
 import { QuantityStepper } from "../components/QuantityStepper";
@@ -48,6 +50,8 @@ export default function ComponentsPage() {
   const [draft, setDraft] = useState("");
   const [dialog, setDialog] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [draftForm, setDraftForm] = useState(() =>
+    fromDraft({ name: "Camping chairs", quantity: 2, litres: 40, tags: [["Location", "Shed"]] }));
   const existing = [["Location"], ["Location", "Shed"], ["Type"], ["Type", "Camping"]];
 
   return (
@@ -66,9 +70,10 @@ export default function ComponentsPage() {
           <Button to="/" icon={<BackIcon />}>Link</Button>
         </div>
         <Button variant="primary" block>Block</Button>
+        <Button block size="lg" icon={<MicIcon />}>Large</Button>
       </Section>
       <Section title="icons">
-        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><ChevronIcon /></div>
+        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><ChevronIcon /><MicIcon /></div>
       </Section>
       <Section title="Spinner"><Spinner /><Spinner label="Saving…" /></Section>
       <Section title="TextField">
@@ -129,6 +134,12 @@ export default function ComponentsPage() {
       <Section title="ItemRow">
         <ItemRow to="#" name="Tent" litres={30} quantity={2} tags={[{ id: 1, path: ["Type", "Camping"] }]} />
         <ItemRow to="#" name="Lamp" litres={2.5} quantity={1} tags={[]} />
+      </Section>
+      <Section title="DraftCard">
+        <DraftCard form={draftForm} onChange={setDraftForm} onRemove={() => {}} errors={{}} existingTags={existing} />
+        <DraftCard form={fromDraft({ name: "Lamp", quantity: 1, litres: null, tags: [] })} onChange={() => {}}
+          onRemove={() => {}} errors={{ litres: "Pick a size or type the litres" }} existingTags={existing} />
+        <DraftCard form={draftForm} onChange={setDraftForm} onRemove={() => {}} errors={{}} existingTags={existing} defaultOpen />
       </Section>
       <Section title="TagTreeRow">
         <div>

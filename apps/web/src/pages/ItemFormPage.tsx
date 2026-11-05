@@ -1,16 +1,19 @@
 // Add or edit one item. Spec: T1 — fast entry on a phone: name, size preset
 // or litres, quantity, tags with inline path creation, note. Deleting offers
-// Undo rather than a confirmation, since it is cheap to reverse.
+// Undo rather than a confirmation, since it is cheap to reverse. T2: when
+// dictation is set up, adding offers it first.
 import { useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { Item } from "../api/client";
-import { useCreateItem, useDeleteItem, useItems, useRestoreItem, useUpdateItem } from "../api/items";
+import { useDictation } from "../api/dictation";
+import { useCreateItem, useCreateItemDetached, useDeleteItem, useItems, useUpdateItem } from "../api/items";
 import { useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
 import { AppShell } from "../components/AppShell";
 import { Banner } from "../components/Banner";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { MicIcon } from "../components/icons";
 import { PageHeader } from "../components/PageHeader";
 import { QuantityStepper } from "../components/QuantityStepper";
 import { SizePicker } from "../components/SizePicker";
@@ -46,10 +49,11 @@ function Editor({ item }: { item?: Item }) {
   const navigate = useNavigate();
   const toast = useToast();
   const tags = useTags();
+  const dictation = useDictation();
   const create = useCreateItem();
   const update = useUpdateItem(item?.id ?? 0);
   const remove = useDeleteItem();
-  const restoreItem = useRestoreItem();
+  const createDetached = useCreateItemDetached();
   const [form, setForm] = useState<ItemForm>(() => (item ? fromItem(item) : emptyForm()));
   const [errors, setErrors] = useState<FormErrors>({});
   const nameRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
@@ -99,7 +103,7 @@ function Editor({ item }: { item?: Item }) {
       action: {
         label: "Undo",
         onClick: () => {
-          restoreItem(restore).then(
+          createDetached(restore).then(
             () => toast({ message: `Restored “${item.name}”` }),
             (err: Error) => toast({ message: `Couldn't restore “${item.name}”: ${err.message}` }),
           );
@@ -115,6 +119,10 @@ function Editor({ item }: { item?: Item }) {
     <form onSubmit={onSubmit} noValidate className="flex flex-1 flex-col gap-5">
       <PageHeader title={item ? "Edit item" : "Add item"} back={{ to: "/", label: "Cancel and go back" }}
         actions={item && <Button variant="danger" busy={remove.isPending} disabled={busy} onClick={onDelete}>Delete</Button>} />
+      {/* Hidden, not disabled, without an API key: typed entry is the whole app then. */}
+      {!item && dictation.data?.enabled && (
+        <Button to="/items/dictate" block size="lg" icon={<MicIcon />}>Dictate items</Button>
+      )}
       <TextField ref={nameRef} label="Name" value={form.name} onChange={set("name")} error={errors.name}
         autoFocus={!item} autoCapitalize="sentences" enterKeyHint="next" placeholder="e.g. Camping chairs" />
       <SizePicker litres={form.litres} onChange={set("litres")} error={errors.litres} />

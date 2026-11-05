@@ -5,6 +5,7 @@ import type { components, paths } from "./schema.gen";
 export type Item = components["schemas"]["Item"];
 export type ItemInput = components["schemas"]["ItemInput"];
 export type Tag = components["schemas"]["Tag"];
+export type Draft = components["schemas"]["Draft"];
 
 export const api = createClient<paths>({ baseUrl: "/" });
 

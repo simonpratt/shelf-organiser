@@ -42,7 +42,14 @@ export default defineConfig({
     : {
         command: `rm -rf '${dataDir}' && '${binary}'`,
         url: `http://127.0.0.1:${port}/healthz`,
-        env: { APP_TEST_MODE: "1", DATA_DIR: dataDir, PORT: String(port) },
+        env: {
+          APP_TEST_MODE: "1",
+          DATA_DIR: dataDir,
+          PORT: String(port),
+          // Dictation talks to the server's own test-mode fake of the Anthropic API.
+          ANTHROPIC_API_KEY: "test-anthropic-key",
+          ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}/api/test/anthropic/`,
+        },
         reuseExistingServer: false,
         gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
       },

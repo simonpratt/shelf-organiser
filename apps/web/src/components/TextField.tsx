@@ -10,6 +10,8 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement & HTMLTextAreaElement>, "
   hint?: string;
   error?: string;
   multiline?: boolean;
+  /** Visible lines of a multiline field; 3 when not given. */
+  rows?: number;
   /** Text after the input, inside its border, e.g. a unit. */
   suffix?: string;
   /** A control beside the input, aligned with it rather than with the hint. */
@@ -21,7 +23,7 @@ export const inputClasses =
   "w-full min-h-touch rounded-md border bg-surface px-3 py-2 text-base text-text placeholder:text-muted " +
   "focus:outline-2 focus:outline-accent focus:border-accent";
 
-export function TextField({ label, value, onChange, hint, error, multiline, suffix, action, className, ref, ...rest }: Props) {
+export function TextField({ label, value, onChange, hint, error, multiline, rows = 3, suffix, action, className, ref, ...rest }: Props) {
   const id = useId();
   const describedBy = cx(hint && `${id}-hint`, error && `${id}-error`) || undefined;
   const common = {
@@ -41,7 +43,7 @@ export function TextField({ label, value, onChange, hint, error, multiline, suff
       </label>
       <div className="flex gap-2">
         <div className="relative flex-1">
-          {multiline ? <textarea rows={3} {...common} /> : <input {...common} />}
+          {multiline ? <textarea rows={rows} {...common} /> : <input {...common} />}
           {suffix && (
             <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted">
               {suffix}

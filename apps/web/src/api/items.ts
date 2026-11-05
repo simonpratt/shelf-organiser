@@ -26,7 +26,7 @@ export function useCreateItem() {
  * Creates an item outside any mutation observer, so it still completes and
  * reports back when the screen that started it has gone (Undo in a toast).
  */
-export function useRestoreItem() {
+export function useCreateItemDetached() {
   const invalidate = useInvalidate();
   return async (body: ItemInput) => {
     const item = unwrap(await api.POST("/api/items", { body }));

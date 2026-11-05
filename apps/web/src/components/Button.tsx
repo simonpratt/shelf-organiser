@@ -14,6 +14,8 @@ type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   busy?: boolean;
   /** Stretches to the container's width. */
   block?: boolean;
+  /** lg: the one big call to action on a screen, such as Dictate items. */
+  size?: "md" | "lg";
   to?: string;
   children?: ReactNode;
 };
@@ -25,9 +27,10 @@ const variants: Record<Variant, string> = {
   danger: "text-error border border-error hover:bg-error-tint",
 };
 
-export function Button({ variant = "secondary", icon, busy, block, to, className, children, disabled, ...rest }: Props) {
+export function Button({ variant = "secondary", icon, busy, block, size = "md", to, className, children, disabled, ...rest }: Props) {
   const classes = cx(
-    "inline-flex min-h-touch min-w-touch items-center justify-center gap-2 rounded-md px-4 text-base font-medium",
+    "inline-flex min-h-touch min-w-touch items-center justify-center gap-2 rounded-md px-4 font-medium",
+    size === "lg" ? "min-h-14 text-lg" : "text-base",
     "transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
     "disabled:opacity-50 disabled:pointer-events-none",
     variants[variant],
