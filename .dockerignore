@@ -1,0 +1,8 @@
+.git
+.pnpm-store
+**/node_modules
+apps/web/dist
+test/e2e/test-results
+bin
+data
+*.db
