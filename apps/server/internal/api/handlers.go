@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"shelf-organiser/apps/server/internal/dictation"
+	"shelf-organiser/apps/server/internal/claude"
 	"shelf-organiser/apps/server/internal/store"
 	"shelf-organiser/apps/server/openapi"
 )
@@ -15,14 +15,15 @@ import (
 type handlers struct {
 	store  *store.Store
 	logger *slog.Logger
-	// extractor reads dictations; nil when no Anthropic API key is configured.
-	extractor dictation.Extractor
+	// claude is nil when no Anthropic API key is configured.
+	claude *claude.Client
 }
 
 // Register mounts the JSON API, its spec at /api/openapi.json, and a JSON
-// 404 for any other /api path, on mux. A nil extractor leaves dictation off.
-func Register(mux *http.ServeMux, s *store.Store, extractor dictation.Extractor, logger *slog.Logger) {
-	h := &handlers{store: s, logger: logger, extractor: extractor}
+// 404 for any other /api path, on mux. A nil Claude client leaves every
+// Claude feature off.
+func Register(mux *http.ServeMux, s *store.Store, c *claude.Client, logger *slog.Logger) {
+	h := &handlers{store: s, logger: logger, claude: c}
 	strict := NewStrictHandlerWithOptions(h, nil, StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			WriteError(w, http.StatusBadRequest, "invalid request body")

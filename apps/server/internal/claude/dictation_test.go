@@ -1,4 +1,4 @@
-package dictation
+package claude
 
 import (
 	"context"
@@ -8,14 +8,14 @@ import (
 	"strings"
 	"testing"
 
-	"shelf-organiser/apps/server/internal/dictation/claudefake"
+	"shelf-organiser/apps/server/internal/claude/claudefake"
 )
 
 func ptr(f float64) *float64 { return &f }
 
 func TestCleanKeepsOnlyUsableDraftsAndExistingTags(t *testing.T) {
 	existing := [][]string{{"Location", "Shed"}, {"Type", "Camping"}}
-	got := Clean([]Draft{
+	got := CleanDrafts([]Draft{
 		{Name: "  Camping chairs ", Quantity: 2, Litres: ptr(40), Tags: [][]string{{"type", "camping"}, {"Type", "Camping"}, {"Type", "Tents"}}},
 		{Name: "   ", Quantity: 1, Litres: ptr(10)},
 		{Name: "Mystery box", Quantity: 0, Litres: ptr(-5)},
@@ -42,7 +42,7 @@ func TestClaudeSendsTheTagPathsAndReadsTheDrafts(t *testing.T) {
 	srv := httptest.NewServer(fake)
 	defer srv.Close()
 
-	c := NewClaude("test-key", srv.URL)
+	c := New("test-key", srv.URL)
 	drafts, err := c.Extract(context.Background(), "two camping chairs and a drill from the shed",
 		[][]string{{"Location", "Shed"}, {"Type", "Camping"}})
 	if err != nil {
@@ -60,7 +60,7 @@ func TestClaudeSendsTheTagPathsAndReadsTheDrafts(t *testing.T) {
 		t.Fatalf("got %d requests; want 1", len(reqs))
 	}
 	body := reqs[0].Body
-	if body["model"] != Model {
+	if body["model"] != DictationModel {
 		t.Errorf("model = %v", body["model"])
 	}
 	format := body["output_config"].(map[string]any)["format"].(map[string]any)
@@ -82,9 +82,9 @@ func TestClaudeErrorsNeverContainTheAPIKey(t *testing.T) {
 	srv := httptest.NewServer(claudefake.New("right-key"))
 	defer srv.Close()
 
-	for name, c := range map[string]*Claude{
-		"rejected key": NewClaude("wrong-key-sk-ant-123", srv.URL),
-		"server error": NewClaude("right-key", srv.URL),
+	for name, c := range map[string]*Client{
+		"rejected key": New("wrong-key-sk-ant-123", srv.URL),
+		"server error": New("right-key", srv.URL),
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := c.Extract(context.Background(), "a tent "+claudefake.FailMarker, nil)

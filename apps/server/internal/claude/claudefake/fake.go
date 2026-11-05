@@ -1,5 +1,5 @@
 // Package claudefake is the shared fake of the Anthropic Messages API, used
-// by the dictation unit tests, the app tests and (mounted under test mode)
+// by the claude package tests, the app tests and (mounted under test mode)
 // the e2e suite, so no test ever reaches the real API.
 //
 // It answers a dictation the way a careful model would on simple input:

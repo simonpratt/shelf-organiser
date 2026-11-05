@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"shelf-organiser/apps/server/internal/dictation/claudefake"
+	"shelf-organiser/apps/server/internal/claude/claudefake"
 )
 
 // startApp boots the whole app through run(), as main does, on a free port

@@ -25,7 +25,7 @@ Gotchas:
 
 - `apps/server/openapi/openapi.yaml`: the hand-written API spec, source of truth for both sides. `make generate` rewrites the committed `apps/server/internal/api/api.gen.go` and `apps/web/src/api/schema.gen.ts`; commit all three together.
 - `apps/server/cmd/shelf-organiser/`: `main.go` with the testable `run()`, and `main_test.go` app tests through it.
-- `apps/server/internal/`: `config` (env), `store` (SQLite, goose migrations in `store/migrations/`, all queries), `api` (handlers for the generated strict interface), `dictation` (transcript to drafts via Claude, and `claudefake/`), `web` (serves the embedded client).
+- `apps/server/internal/`: `config` (env), `store` (SQLite, goose migrations in `store/migrations/`, all queries), `api` (handlers for the generated strict interface), `claude` (every Claude call: dictation drafts, tag proposals; and `claudefake/`), `web` (serves the embedded client).
 - `docs/adr/`: decisions, e.g. why dictation leaves speech-to-text to the phone keyboard.
 - `apps/web/src/`: `pages/` arrange `components/`; logic lives in `items/`, `tags/`, `space/` (the breakdown, the hand-rolled squarify and the nested map layout `nest.ts`) and `session/` (sessionStorage) with `*.test.ts` beside it; `api/` holds the client and one TanStack Query hooks file per resource.
 - `test/e2e/`: Playwright. Every spec imports `test` from `fixtures/test.ts` (resets the database before each test) and seeds through `fixtures/api.ts`.
@@ -39,8 +39,8 @@ Gotchas:
 - **Items store litres per unit;** total space is litres × quantity. Size presets live only in `apps/web/src/items/size.ts` and are never stored.
 - **Item writes take tag paths;** the server creates missing tags in the same transaction, so a rejected item leaves no stray tags.
 - **The Space screen is computed in the client** from the item and tag lists (`space/breakdown.ts`); there is no aggregate API. Within a dimension each item counts once, under its deepest tag (ties go to the first by path), so blocks always sum to the total; All items is ungrouped. The treemap nests each block's contents down to the items, but only the current level's blocks are tap targets. It is `aria-hidden`; the breakdown list below it is the accessible view and must keep the same links.
-- **Dictation is optional:** without `ANTHROPIC_API_KEY` the dictate button is hidden and `/api/dictation/drafts` 503s; typed entry must never depend on it. Drafts only ever carry existing tags (`dictation.Clean`) and nothing is saved until the client creates each item.
-- **No test reaches the real Anthropic API.** Every layer uses `dictation/claudefake`: `httptest` in Go tests, and in e2e the server mounts it at `/api/test/anthropic/` and Playwright points `ANTHROPIC_BASE_URL` there. Its canned parsing is described in its package comment; a transcript containing `FAIL` makes it 500.
+- **Dictation is optional:** without `ANTHROPIC_API_KEY` the dictate button is hidden and `/api/dictation/drafts` 503s; typed entry must never depend on it. Drafts only ever carry existing tags (`claude.CleanDrafts`) and nothing is saved until the client creates each item.
+- **No test reaches the real Anthropic API.** Every layer uses `claude/claudefake`: `httptest` in Go tests, and in e2e the server mounts it at `/api/test/anthropic/` and Playwright points `ANTHROPIC_BASE_URL` there. Its canned parsing is described in its package comment; a transcript containing `FAIL` makes it 500.
 - **Test-only routes** (`POST /api/test/reset`, the fake above) exist only with `APP_TEST_MODE=1`; `main_test.go` proves they 404 otherwise. Every env var is in `.env.example` (`deploy_test.go` enforces it).
 - **Scope:** one user on a LAN, no auth, nothing hosting- or ingress-related.
 

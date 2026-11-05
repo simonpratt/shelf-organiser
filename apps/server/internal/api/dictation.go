@@ -9,15 +9,15 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 
-	"shelf-organiser/apps/server/internal/dictation"
+	"shelf-organiser/apps/server/internal/claude"
 )
 
 func (h *handlers) GetDictation(context.Context, GetDictationRequestObject) (GetDictationResponseObject, error) {
-	return GetDictation200JSONResponse{Enabled: h.extractor != nil}, nil
+	return GetDictation200JSONResponse{Enabled: h.claude != nil}, nil
 }
 
 func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) (DraftItemsResponseObject, error) {
-	if h.extractor == nil {
+	if h.claude == nil {
 		return DraftItems503JSONResponse{Error: "dictation isn't set up: the server has no Anthropic API key"}, nil
 	}
 	if req.Body == nil {
@@ -27,7 +27,7 @@ func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) 
 	switch {
 	case transcript == "":
 		return DraftItems400JSONResponse{BadRequestJSONResponse{Error: "say or type at least one item"}}, nil
-	case utf8.RuneCountInString(transcript) > dictation.MaxTranscript:
+	case utf8.RuneCountInString(transcript) > claude.MaxTranscript:
 		return DraftItems400JSONResponse{BadRequestJSONResponse{Error: "that's too long for one go; split it up"}}, nil
 	}
 
@@ -39,14 +39,14 @@ func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) 
 	for i, t := range tags {
 		paths[i] = t.Path
 	}
-	drafts, err := h.extractor.Extract(ctx, transcript, paths)
+	drafts, err := h.claude.Extract(ctx, transcript, paths)
 	if err != nil {
 		h.logger.Error("reading dictation", "err", err)
-		return DraftItems502JSONResponse{Error: dictationFailure(err)}, nil
+		return DraftItems502JSONResponse{Error: claudeFailure(err)}, nil
 	}
 
 	out := DraftItems200JSONResponse{Drafts: []Draft{}}
-	for _, d := range dictation.Clean(drafts, paths) {
+	for _, d := range claude.CleanDrafts(drafts, paths) {
 		tags := make([]TagPath, len(d.Tags))
 		for i, t := range d.Tags {
 			tags[i] = t
@@ -56,9 +56,9 @@ func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) 
 	return out, nil
 }
 
-// dictationFailure says what the user can do about a failed call to Claude:
+// claudeFailure says what the user can do about a failed call to Claude:
 // nothing but fix the server's key, wait, or retry.
-func dictationFailure(err error) string {
+func claudeFailure(err error) string {
 	var apiErr *anthropic.Error
 	if errors.As(err, &apiErr) {
 		switch apiErr.StatusCode {
