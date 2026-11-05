@@ -1,0 +1,39 @@
+# Shelf Organiser
+
+The contents of one person's shed and back room, sized and tagged so they can see what takes up the space.
+
+## Items
+
+**Item**:
+One kind of thing being stored, such as "Camping chairs", with a size, a quantity and any number of tags.
+_Avoid_: thing, object, entry, record
+
+**Size**:
+How much space one unit of an item takes, in litres.
+_Avoid_: dimensions (that word means a top-level tag here), footprint
+
+**Size preset**:
+A named everyday container standing for a fixed size (Shoebox, Crate, Storage bin, Large box, Bulky), offered so a size can be picked with one tap.
+_Avoid_: template, category
+
+**Quantity**:
+How many units of an item there are; 1 when not given.
+_Avoid_: count, amount
+
+**Total space**:
+An item's size times its quantity; what the app sums and ranks by.
+_Avoid_: total volume, footprint
+
+## Tags
+
+**Tag**:
+A named node in one tree of tags; each tag has at most one parent tag.
+_Avoid_: category, label, folder
+
+**Tag path**:
+A tag's names from its top-level tag down, shown as "Location › Shed › Shelf 2" and typed as "Location/Shed/Shelf 2".
+_Avoid_: breadcrumb, full name
+
+**Dimension**:
+A top-level tag, such as Location or Type, that groups one way of looking at the items.
+_Avoid_: root tag, axis, facet
