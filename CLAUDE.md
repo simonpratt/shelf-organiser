@@ -6,6 +6,8 @@ A self-hosted, single-user app for working out what takes up the space in a shed
 
 Run everything through the `Makefile`:
 
+- `make install`: first, in a fresh clone (pnpm workspace deps).
+
 - `make check`: `make lint` (gofmt, go vet, ESLint, both typechecks) then `make test`. Run before every commit.
 - `make test`: unit tests only.
 - `make e2e`: builds `bin/shelf-organiser`, then runs Playwright (`api` and Pixel 7 `ui` projects) against it on :8181.
