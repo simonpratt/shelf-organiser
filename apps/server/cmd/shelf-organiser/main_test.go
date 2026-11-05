@@ -179,13 +179,19 @@ func TestServesSpecAsWritten(t *testing.T) {
 	}
 }
 
-func TestDictationIsOffWithoutAnAPIKey(t *testing.T) {
+func TestClaudeFeaturesAreOffWithoutAnAPIKey(t *testing.T) {
 	base := startApp(t, nil)
-	if _, body := do(t, "GET", base+"/api/dictation", ""); strings.TrimSpace(body) != `{"enabled":false}` {
-		t.Errorf("dictation status = %s; want disabled", body)
+	if _, body := do(t, "GET", base+"/api/claude", ""); strings.TrimSpace(body) != `{"enabled":false}` {
+		t.Errorf("Claude status = %s; want disabled", body)
 	}
-	if code, _ := do(t, "POST", base+"/api/dictation/drafts", `{"transcript":"a tent"}`); code != 503 {
-		t.Errorf("drafts without a key = %d; want 503", code)
+	for path, body := range map[string]string{
+		"/api/dictation/drafts": `{"transcript":"a tent"}`,
+		"/api/tag-proposals":    `{"name":"Tent"}`,
+		"/api/organise":         ``,
+	} {
+		if code, _ := do(t, "POST", base+path, body); code != 503 {
+			t.Errorf("%s without a key = %d; want 503", path, code)
+		}
 	}
 }
 
@@ -207,8 +213,8 @@ func TestDictationDraftsReuseExistingTagsAndSaveNothing(t *testing.T) {
 	base := startApp(t, map[string]string{"ANTHROPIC_API_KEY": "sk-ant-app-test", "ANTHROPIC_BASE_URL": claude.URL})
 
 	do(t, "POST", base+"/api/tags", `{"path":["Location","Shed"]}`)
-	if _, body := do(t, "GET", base+"/api/dictation", ""); strings.TrimSpace(body) != `{"enabled":true}` {
-		t.Errorf("dictation status = %s; want enabled", body)
+	if _, body := do(t, "GET", base+"/api/claude", ""); strings.TrimSpace(body) != `{"enabled":true}` {
+		t.Errorf("Claude status = %s; want enabled", body)
 	}
 	code, body := do(t, "POST", base+"/api/dictation/drafts", `{"transcript":"two camping chairs, a drill in the shed"}`)
 	want := `{"drafts":[{"litres":40,"name":"Camping chairs","quantity":2,"tags":[]},` +
@@ -234,5 +240,47 @@ func TestDictationDraftsReuseExistingTagsAndSaveNothing(t *testing.T) {
 				t.Errorf("got %d %s; want %d without the key", code, body, tc.code)
 			}
 		})
+	}
+}
+
+func TestOrganiseProposesTypeTagsThatApplyInOneGo(t *testing.T) {
+	claude := httptest.NewServer(claudefake.New("sk-ant-app-test"))
+	defer claude.Close()
+	base := startApp(t, map[string]string{"ANTHROPIC_API_KEY": "sk-ant-app-test", "ANTHROPIC_BASE_URL": claude.URL})
+
+	do(t, "POST", base+"/api/items", `{"name":"Lawn mower","litres":300,"tags":[["Location","Shed"]]}`)
+	do(t, "POST", base+"/api/items", `{"name":"Tent","litres":40,"tags":[["Type","Camping"]]}`)
+	do(t, "POST", base+"/api/items", `{"name":"Mystery box","litres":20}`)
+
+	code, body := do(t, "POST", base+"/api/organise", "")
+	// The tent has a Type tag already, and the fake can't place the mystery box.
+	want := `{"dimension":"Type","proposals":[{"itemId":1,"tags":[{"isNew":true,"path":["Type","Garden"]}]}],"remaining":1}`
+	if code != 200 || strings.TrimSpace(body) != want {
+		t.Fatalf("organise = %d %s; want %s", code, body, want)
+	}
+	if _, tags := do(t, "GET", base+"/api/tags", ""); strings.Contains(tags, "Garden") {
+		t.Errorf("tags after organise = %s; want nothing created until applied", tags)
+	}
+
+	if code, body := do(t, "POST", base+"/api/items/tags", `{"assignments":[{"itemId":1,"tags":[["Type","Garden"]]},{"itemId":99,"tags":[["Type","Sport"]]}]}`); code != 404 {
+		t.Errorf("applying to a missing item = %d %s; want 404", code, body)
+	}
+	if code, body := do(t, "POST", base+"/api/items/tags", `{"assignments":[{"itemId":1,"tags":[["Type","Garden"]]}]}`); code != 204 {
+		t.Fatalf("apply = %d %s; want 204", code, body)
+	}
+	_, mower := do(t, "GET", base+"/api/items/1", "")
+	if !strings.Contains(mower, `["Location","Shed"]`) || !strings.Contains(mower, `["Type","Garden"]`) {
+		t.Errorf("mower after apply = %s; want its Location kept and Type › Garden added", mower)
+	}
+	if _, tags := do(t, "GET", base+"/api/tags", ""); strings.Contains(tags, "Sport") {
+		t.Errorf("tags = %s; want the failed batch to have created nothing", tags)
+	}
+
+	code, body = do(t, "POST", base+"/api/tag-proposals", `{"name":"Cordless drill","tags":[["Location","Shed"]]}`)
+	if want := `{"dimension":"Type","tags":[{"isNew":true,"path":["Type","Tools","Power tools"]}]}`; code != 200 || strings.TrimSpace(body) != want {
+		t.Errorf("tag proposals = %d %s; want %s", code, body, want)
+	}
+	if code, _ := do(t, "POST", base+"/api/tag-proposals", `{"name":" "}`); code != 400 {
+		t.Errorf("tag proposals without a name = %d; want 400", code)
 	}
 }

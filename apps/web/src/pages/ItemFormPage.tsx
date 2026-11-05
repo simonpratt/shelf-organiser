@@ -5,7 +5,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { Item } from "../api/client";
-import { useDictation } from "../api/dictation";
+import { useClaude } from "../api/claude";
 import { useCreateItem, useCreateItemDetached, useDeleteItem, useItems, useUpdateItem } from "../api/items";
 import { useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
@@ -49,7 +49,7 @@ function Editor({ item }: { item?: Item }) {
   const navigate = useNavigate();
   const toast = useToast();
   const tags = useTags();
-  const dictation = useDictation();
+  const claude = useClaude();
   const create = useCreateItem();
   const update = useUpdateItem(item?.id ?? 0);
   const remove = useDeleteItem();
@@ -120,7 +120,7 @@ function Editor({ item }: { item?: Item }) {
       <PageHeader title={item ? "Edit item" : "Add item"} back={{ to: "/", label: "Cancel and go back" }}
         actions={item && <Button variant="danger" busy={remove.isPending} disabled={busy} onClick={onDelete}>Delete</Button>} />
       {/* Hidden, not disabled, without an API key: typed entry is the whole app then. */}
-      {!item && dictation.data?.enabled && (
+      {!item && claude.data?.enabled && (
         <Button to="/items/dictate" block size="lg" icon={<MicIcon />}>Dictate items</Button>
       )}
       <TextField ref={nameRef} label="Name" value={form.name} onChange={set("name")} error={errors.name}

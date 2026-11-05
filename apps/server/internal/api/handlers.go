@@ -217,3 +217,27 @@ func (h *handlers) DeleteTag(ctx context.Context, req DeleteTagRequestObject) (D
 	}
 	return DeleteTag204Response{}, nil
 }
+
+func (h *handlers) AddItemTags(ctx context.Context, req AddItemTagsRequestObject) (AddItemTagsResponseObject, error) {
+	if req.Body == nil {
+		return AddItemTags400JSONResponse{BadRequestJSONResponse{Error: "a JSON body is required"}}, nil
+	}
+	assignments := make([]store.TagAssignment, len(req.Body.Assignments))
+	for i, a := range req.Body.Assignments {
+		assignments[i] = store.TagAssignment{ItemID: a.ItemId}
+		for _, t := range a.Tags {
+			assignments[i].Tags = append(assignments[i].Tags, t)
+		}
+	}
+	err := h.store.AddItemTags(ctx, assignments)
+	if msg, ok := validationMessage(err); ok {
+		return AddItemTags400JSONResponse{BadRequestJSONResponse{Error: msg}}, nil
+	}
+	if errors.Is(err, store.ErrNotFound) {
+		return AddItemTags404JSONResponse{NotFoundJSONResponse{Error: "an item no longer exists; reload and try again"}}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return AddItemTags204Response{}, nil
+}

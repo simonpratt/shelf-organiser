@@ -136,13 +136,123 @@ paths:
       responses:
         "204": { description: Deleted }
         "404": { $ref: "#/components/responses/NotFound" }
-  /api/dictation:
-    get:
-      operationId: getDictation
-      summary: Whether dictation is available (an Anthropic API key is configured)
+  /api/items/tags:
+    post:
+      operationId: addItemTags
+      summary: Add tags to several items in one transaction, keeping the tags they have
+      description: Missing tags are created. An unknown item or invalid path changes nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignments]
+              properties:
+                assignments:
+                  type: array
+                  items:
+                    type: object
+                    required: [itemId, tags]
+                    properties:
+                      itemId: { type: integer, format: int64 }
+                      tags:
+                        type: array
+                        items: { $ref: "#/components/schemas/TagPath" }
+      responses:
+        "204": { description: Added }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/tag-proposals:
+    post:
+      operationId: proposeTags
+      summary: Ask Claude for up to three proposed tags in the Type dimension for one item, saved or not
+      description: Nothing is saved. No tags come back when the item already has one in the Type dimension.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                note: { type: string }
+                tags:
+                  description: The tags the item has so far
+                  type: array
+                  items: { $ref: "#/components/schemas/TagPath" }
       responses:
         "200":
-          description: Dictation status
+          description: The proposed tags, best first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dimension, tags]
+                properties:
+                  dimension: { type: string }
+                  tags:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProposedTag" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "502":
+          description: Claude couldn't be reached or gave no usable answer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Claude isn't set up (no Anthropic API key)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/organise:
+    post:
+      operationId: organise
+      summary: Ask Claude for one proposed tag in the Type dimension for each item without one, biggest first, at most 40
+      description: Nothing is saved; the client applies the accepted proposals with addItemTags.
+      responses:
+        "200":
+          description: The proposals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dimension, proposals, remaining]
+                properties:
+                  dimension:
+                    description: The top-level tag taken as the Type dimension; may not exist yet
+                    type: string
+                  proposals:
+                    type: array
+                    items:
+                      type: object
+                      required: [itemId, tags]
+                      properties:
+                        itemId: { type: integer, format: int64 }
+                        tags:
+                          type: array
+                          items: { $ref: "#/components/schemas/ProposedTag" }
+                  remaining:
+                    description: Other items that still have no tag in the dimension
+                    type: integer
+        "502":
+          description: Claude couldn't be reached or gave no usable answer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Claude isn't set up (no Anthropic API key)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/claude:
+    get:
+      operationId: getClaude
+      summary: Whether Claude features (dictation, tag proposals) are available, i.e. an Anthropic API key is configured
+      responses:
+        "200":
+          description: Claude status
           content:
             application/json:
               schema:
@@ -278,6 +388,13 @@ components:
           description: Tag paths; any missing tags (and ancestors) are created
           type: array
           items: { $ref: "#/components/schemas/TagPath" }
+    ProposedTag:
+      description: A tag Claude proposes for an item; isNew when it doesn't exist yet
+      type: object
+      required: [path, isNew]
+      properties:
+        path: { $ref: "#/components/schemas/TagPath" }
+        isNew: { type: boolean }
     Draft:
       description: A proposed item read from a dictation, not yet saved
       type: object

@@ -6,6 +6,14 @@
 // the transcript is split on commas, "and" and new lines; each piece becomes
 // one item with a leading number as its quantity and a size of 40 L; and an
 // existing tag is suggested when its last name appears in the piece.
+//
+// It answers a request for tag proposals (one with an <items> section) in
+// the existing top-level tag named Type, Kind or Category, else a new
+// "Type": for each item with no tag there, first any existing tag in it whose
+// last name (less a final "s") appears in the item's name or note, then the
+// tags from a small keyword table (drill: Type/Tools/Power tools, tent:
+// Type/Camping, mower: Type/Garden, see keywords). Items matching nothing get
+// no proposal. FailMarker in an item's name makes it 500.
 package claudefake
 
 import (
@@ -51,7 +59,7 @@ func writeError(w http.ResponseWriter, status int, typ, msg string) {
 }
 
 var (
-	section  = regexp.MustCompile(`(?s)<(tags|dictation)>\n(.*?)\n?</(?:tags|dictation)>`)
+	section  = regexp.MustCompile(`(?s)<(tags|dictation|items)>\n(.*?)\n?</(?:tags|dictation|items)>`)
 	splitter = regexp.MustCompile(`,|\n|\band\b`)
 	leading  = regexp.MustCompile(`^(\d+|a|an|one|two|three|four|five|six)\s+`)
 	words    = map[string]int{"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
@@ -77,6 +85,10 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	prompt := userText(body)
+	if strings.Contains(prompt, "<items>") {
+		f.proposeTags(w, body, prompt)
+		return
+	}
 	var tags []string
 	var transcript string
 	for _, m := range section.FindAllStringSubmatch(prompt, -1) {
@@ -125,7 +137,13 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		it.Name = strings.ToUpper(piece[:1]) + piece[1:]
 		items = append(items, it)
 	}
-	out, _ := json.Marshal(map[string]any{"items": items})
+	writeAnswer(w, body, map[string]any{"items": items})
+}
+
+// writeAnswer writes a message whose text is answer as JSON, as structured
+// output does.
+func writeAnswer(w http.ResponseWriter, body map[string]any, answer any) {
+	out, _ := json.Marshal(answer)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id": "msg_fake", "type": "message", "role": "assistant", "model": body["model"],

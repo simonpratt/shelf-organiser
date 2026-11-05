@@ -4,7 +4,7 @@
 // tab until then, so Back or a reload loses nothing.
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import { useDictation, useDraftItems } from "../api/dictation";
+import { useClaude, useDraftItems } from "../api/claude";
 import { useCreateItemDetached } from "../api/items";
 import { useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
@@ -24,7 +24,7 @@ import { readSession, writeSession } from "../session/store";
 const back = { to: "/items/new", label: "Back to adding an item" };
 
 export function DictatePage() {
-  const dictation = useDictation();
+  const dictation = useClaude();
   return (
     <AppShell nav={false}>
       {dictation.isPending ? (

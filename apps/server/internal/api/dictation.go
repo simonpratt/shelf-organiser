@@ -2,19 +2,11 @@ package api
 
 import (
 	"context"
-	"errors"
-	"net/http"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/anthropics/anthropic-sdk-go"
-
 	"shelf-organiser/apps/server/internal/claude"
 )
-
-func (h *handlers) GetDictation(context.Context, GetDictationRequestObject) (GetDictationResponseObject, error) {
-	return GetDictation200JSONResponse{Enabled: h.claude != nil}, nil
-}
 
 func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) (DraftItemsResponseObject, error) {
 	if h.claude == nil {
@@ -42,7 +34,7 @@ func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) 
 	drafts, err := h.claude.Extract(ctx, transcript, paths)
 	if err != nil {
 		h.logger.Error("reading dictation", "err", err)
-		return DraftItems502JSONResponse{Error: claudeFailure(err)}, nil
+		return DraftItems502JSONResponse{Error: claudeFailure(err, "add the items")}, nil
 	}
 
 	out := DraftItems200JSONResponse{Drafts: []Draft{}}
@@ -54,19 +46,4 @@ func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) 
 		out.Drafts = append(out.Drafts, Draft{Name: d.Name, Quantity: d.Quantity, Litres: d.Litres, Tags: tags})
 	}
 	return out, nil
-}
-
-// claudeFailure says what the user can do about a failed call to Claude:
-// nothing but fix the server's key, wait, or retry.
-func claudeFailure(err error) string {
-	var apiErr *anthropic.Error
-	if errors.As(err, &apiErr) {
-		switch apiErr.StatusCode {
-		case http.StatusUnauthorized, http.StatusForbidden:
-			return "The server's Anthropic API key was rejected. Add the items by hand for now."
-		case http.StatusTooManyRequests:
-			return "Claude is busy. Try again in a minute, or add the items by hand."
-		}
-	}
-	return "Claude couldn't read that just now. Try again, or add the items by hand."
 }

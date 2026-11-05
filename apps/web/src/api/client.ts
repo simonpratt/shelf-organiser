@@ -6,6 +6,8 @@ export type Item = components["schemas"]["Item"];
 export type ItemInput = components["schemas"]["ItemInput"];
 export type Tag = components["schemas"]["Tag"];
 export type Draft = components["schemas"]["Draft"];
+export type ProposedTag = components["schemas"]["ProposedTag"];
+export type TagPath = components["schemas"]["TagPath"];
 
 /** The message to show for a failed call: the server's {"error"} or a fallback. */
 export class ApiError extends Error {}

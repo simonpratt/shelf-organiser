@@ -207,3 +207,30 @@ func (s *Store) DeleteItem(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+// TagAssignment adds tags to one item.
+type TagAssignment struct {
+	ItemID int64
+	Tags   [][]string
+}
+
+// AddItemTags adds each assignment's tags to its item, keeping the tags it
+// has and creating any missing tags, all in one transaction: an unknown item
+// or an invalid path changes nothing.
+func (s *Store) AddItemTags(ctx context.Context, assignments []TagAssignment) error {
+	return s.inTx(ctx, func(tx *sql.Tx) error {
+		for _, a := range assignments {
+			var exists bool
+			if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM items WHERE id = ?)", a.ItemID).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return ErrNotFound
+			}
+			if err := setItemTags(ctx, tx, a.ItemID, a.Tags); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

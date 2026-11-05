@@ -79,15 +79,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/dictation": {
+    "/api/items/tags": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Whether dictation is available (an Anthropic API key is configured) */
-        get: operations["getDictation"];
+        get?: never;
+        put?: never;
+        /**
+         * Add tags to several items in one transaction, keeping the tags they have
+         * @description Missing tags are created. An unknown item or invalid path changes nothing.
+         */
+        post: operations["addItemTags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tag-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask Claude for up to three proposed tags in the Type dimension for one item, saved or not
+         * @description Nothing is saved. No tags come back when the item already has one in the Type dimension.
+         */
+        post: operations["proposeTags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/organise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask Claude for one proposed tag in the Type dimension for each item without one, biggest first, at most 40
+         * @description Nothing is saved; the client applies the accepted proposals with addItemTags.
+         */
+        post: operations["organise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/claude": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether Claude features (dictation, tag proposals) are available, i.e. an Anthropic API key is configured */
+        get: operations["getClaude"];
         put?: never;
         post?: never;
         delete?: never;
@@ -176,6 +236,11 @@ export interface components {
             note?: string;
             /** @description Tag paths; any missing tags (and ancestors) are created */
             tags?: components["schemas"]["TagPath"][];
+        };
+        /** @description A tag Claude proposes for an item; isNew when it doesn't exist yet */
+        ProposedTag: {
+            path: components["schemas"]["TagPath"];
+            isNew: boolean;
         };
         /** @description A proposed item read from a dictation, not yet saved */
         Draft: {
@@ -445,7 +510,88 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    getDictation: {
+    addItemTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    assignments: {
+                        /** Format: int64 */
+                        itemId: number;
+                        tags: components["schemas"]["TagPath"][];
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Added */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    proposeTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    note?: string;
+                    /** @description The tags the item has so far */
+                    tags?: components["schemas"]["TagPath"][];
+                };
+            };
+        };
+        responses: {
+            /** @description The proposed tags, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        dimension: string;
+                        tags: components["schemas"]["ProposedTag"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Claude couldn't be reached or gave no usable answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Claude isn't set up (no Anthropic API key) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    organise: {
         parameters: {
             query?: never;
             header?: never;
@@ -454,7 +600,55 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Dictation status */
+            /** @description The proposals */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description The top-level tag taken as the Type dimension; may not exist yet */
+                        dimension: string;
+                        proposals: {
+                            /** Format: int64 */
+                            itemId: number;
+                            tags: components["schemas"]["ProposedTag"][];
+                        }[];
+                        /** @description Other items that still have no tag in the dimension */
+                        remaining: number;
+                    };
+                };
+            };
+            /** @description Claude couldn't be reached or gave no usable answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Claude isn't set up (no Anthropic API key) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getClaude: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Claude status */
             200: {
                 headers: {
                     [name: string]: unknown;

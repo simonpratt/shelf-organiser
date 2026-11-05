@@ -1,6 +1,6 @@
 import { Component, lazy, Suspense, type ReactNode } from "react";
 import { Route, Routes } from "react-router";
-import { useDictation } from "./api/dictation";
+import { useClaude } from "./api/claude";
 import { AppShell } from "./components/AppShell";
 import { Banner } from "./components/Banner";
 import { Button } from "./components/Button";
@@ -17,7 +17,7 @@ const ComponentsPage = import.meta.env.DEV ? lazy(() => import("./dev/Components
 export function App() {
   // Fetched once up front, so the Dictate button is already there when the
   // add form opens rather than pushing the focused Name field down.
-  useDictation();
+  useClaude();
   return (
     <ErrorBoundary>
       <Routes>

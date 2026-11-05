@@ -58,6 +58,16 @@ type ItemInput struct {
 	Tags *[]TagPath `json:"tags,omitempty"`
 }
 
+// ProposedTag A tag Claude proposes for an item; isNew when it doesn't exist yet
+type ProposedTag struct {
+	IsNew bool `json:"isNew"`
+
+	// Path Tag names from the top-level tag down
+	//
+	// Example: ["Type","Camping","Tents"]
+	Path TagPath `json:"path"`
+}
+
 // Tag defines model for Tag.
 type Tag struct {
 	Id int64 `json:"id"`
@@ -106,6 +116,23 @@ type DraftItemsJSONBody struct {
 	Transcript string `json:"transcript"`
 }
 
+// AddItemTagsJSONBody defines parameters for AddItemTags.
+type AddItemTagsJSONBody struct {
+	Assignments []struct {
+		ItemId int64     `json:"itemId"`
+		Tags   []TagPath `json:"tags"`
+	} `json:"assignments"`
+}
+
+// ProposeTagsJSONBody defines parameters for ProposeTags.
+type ProposeTagsJSONBody struct {
+	Name string  `json:"name"`
+	Note *string `json:"note,omitempty"`
+
+	// Tags The tags the item has so far
+	Tags *[]TagPath `json:"tags,omitempty"`
+}
+
 // EnsureTagJSONBody defines parameters for EnsureTag.
 type EnsureTagJSONBody struct {
 	// Path Tag names from the top-level tag down
@@ -126,8 +153,14 @@ type DraftItemsJSONRequestBody DraftItemsJSONBody
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
 type CreateItemJSONRequestBody = ItemInput
 
+// AddItemTagsJSONRequestBody defines body for AddItemTags for application/json ContentType.
+type AddItemTagsJSONRequestBody AddItemTagsJSONBody
+
 // UpdateItemJSONRequestBody defines body for UpdateItem for application/json ContentType.
 type UpdateItemJSONRequestBody = ItemInput
+
+// ProposeTagsJSONRequestBody defines body for ProposeTags for application/json ContentType.
+type ProposeTagsJSONRequestBody ProposeTagsJSONBody
 
 // EnsureTagJSONRequestBody defines body for EnsureTag for application/json ContentType.
 type EnsureTagJSONRequestBody EnsureTagJSONBody
@@ -137,9 +170,9 @@ type UpdateTagJSONRequestBody UpdateTagJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// GetDictation Whether dictation is available (an Anthropic API key is configured)
-	// (GET /api/dictation)
-	GetDictation(w http.ResponseWriter, r *http.Request)
+	// GetClaude Whether Claude features (dictation, tag proposals) are available, i.e. an Anthropic API key is configured
+	// (GET /api/claude)
+	GetClaude(w http.ResponseWriter, r *http.Request)
 	// DraftItems Read item drafts out of a dictated transcript, for review before saving
 	// (POST /api/dictation/drafts)
 	DraftItems(w http.ResponseWriter, r *http.Request)
@@ -149,6 +182,9 @@ type ServerInterface interface {
 	// CreateItem Add an item, creating any tags in its tag paths that are missing
 	// (POST /api/items)
 	CreateItem(w http.ResponseWriter, r *http.Request)
+	// AddItemTags Add tags to several items in one transaction, keeping the tags they have
+	// (POST /api/items/tags)
+	AddItemTags(w http.ResponseWriter, r *http.Request)
 
 	// (DELETE /api/items/{id})
 	DeleteItem(w http.ResponseWriter, r *http.Request, id ID)
@@ -158,6 +194,12 @@ type ServerInterface interface {
 	// UpdateItem Replace an item, including its whole set of tags
 	// (PUT /api/items/{id})
 	UpdateItem(w http.ResponseWriter, r *http.Request, id ID)
+	// Organise Ask Claude for one proposed tag in the Type dimension for each item without one, biggest first, at most 40
+	// (POST /api/organise)
+	Organise(w http.ResponseWriter, r *http.Request)
+	// ProposeTags Ask Claude for up to three proposed tags in the Type dimension for one item, saved or not
+	// (POST /api/tag-proposals)
+	ProposeTags(w http.ResponseWriter, r *http.Request)
 	// ListTags List every tag, sorted by path
 	// (GET /api/tags)
 	ListTags(w http.ResponseWriter, r *http.Request)
@@ -181,11 +223,11 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// GetDictation operation middleware
-func (siw *ServerInterfaceWrapper) GetDictation(w http.ResponseWriter, r *http.Request) {
+// GetClaude operation middleware
+func (siw *ServerInterfaceWrapper) GetClaude(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetDictation(w, r)
+		siw.Handler.GetClaude(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -228,6 +270,20 @@ func (siw *ServerInterfaceWrapper) CreateItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateItem(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddItemTags operation middleware
+func (siw *ServerInterfaceWrapper) AddItemTags(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddItemTags(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -306,6 +362,34 @@ func (siw *ServerInterfaceWrapper) UpdateItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateItem(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Organise operation middleware
+func (siw *ServerInterfaceWrapper) Organise(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Organise(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ProposeTags operation middleware
+func (siw *ServerInterfaceWrapper) ProposeTags(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ProposeTags(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -524,7 +608,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/tags", wrapper.EnsureTag)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/tags/{id}", wrapper.DeleteTag)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/tags/{id}", wrapper.UpdateTag)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dictation", wrapper.GetDictation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/items/tags", wrapper.AddItemTags)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/tag-proposals", wrapper.ProposeTags)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/organise", wrapper.Organise)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/claude", wrapper.GetClaude)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dictation/drafts", wrapper.DraftItems)
 
 	return m
@@ -534,18 +621,18 @@ type BadRequestJSONResponse Error
 
 type NotFoundJSONResponse Error
 
-type GetDictationRequestObject struct {
+type GetClaudeRequestObject struct {
 }
 
-type GetDictationResponseObject interface {
-	VisitGetDictationResponse(w http.ResponseWriter) error
+type GetClaudeResponseObject interface {
+	VisitGetClaudeResponse(w http.ResponseWriter) error
 }
 
-type GetDictation200JSONResponse struct {
+type GetClaude200JSONResponse struct {
 	Enabled bool `json:"enabled"`
 }
 
-func (response GetDictation200JSONResponse) VisitGetDictationResponse(w http.ResponseWriter) error {
+func (response GetClaude200JSONResponse) VisitGetClaudeResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -680,6 +767,50 @@ func (response CreateItem400JSONResponse) VisitCreateItemResponse(w http.Respons
 	return err
 }
 
+type AddItemTagsRequestObject struct {
+	Body *AddItemTagsJSONRequestBody
+}
+
+type AddItemTagsResponseObject interface {
+	VisitAddItemTagsResponse(w http.ResponseWriter) error
+}
+
+type AddItemTags204Response struct {
+}
+
+func (response AddItemTags204Response) VisitAddItemTagsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AddItemTags400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddItemTags400JSONResponse) VisitAddItemTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddItemTags404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AddItemTags404JSONResponse) VisitAddItemTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteItemRequestObject struct {
 	Id ID `json:"id"`
 }
@@ -793,6 +924,132 @@ func (response UpdateItem404JSONResponse) VisitUpdateItemResponse(w http.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type OrganiseRequestObject struct {
+}
+
+type OrganiseResponseObject interface {
+	VisitOrganiseResponse(w http.ResponseWriter) error
+}
+
+type Organise200JSONResponse struct {
+	// Dimension The top-level tag taken as the Type dimension; may not exist yet
+	Dimension string `json:"dimension"`
+	Proposals []struct {
+		ItemId int64         `json:"itemId"`
+		Tags   []ProposedTag `json:"tags"`
+	} `json:"proposals"`
+
+	// Remaining Other items that still have no tag in the dimension
+	Remaining int `json:"remaining"`
+}
+
+func (response Organise200JSONResponse) VisitOrganiseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Organise502JSONResponse Error
+
+func (response Organise502JSONResponse) VisitOrganiseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Organise503JSONResponse Error
+
+func (response Organise503JSONResponse) VisitOrganiseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ProposeTagsRequestObject struct {
+	Body *ProposeTagsJSONRequestBody
+}
+
+type ProposeTagsResponseObject interface {
+	VisitProposeTagsResponse(w http.ResponseWriter) error
+}
+
+type ProposeTags200JSONResponse struct {
+	Dimension string        `json:"dimension"`
+	Tags      []ProposedTag `json:"tags"`
+}
+
+func (response ProposeTags200JSONResponse) VisitProposeTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ProposeTags400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ProposeTags400JSONResponse) VisitProposeTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ProposeTags502JSONResponse Error
+
+func (response ProposeTags502JSONResponse) VisitProposeTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ProposeTags503JSONResponse Error
+
+func (response ProposeTags503JSONResponse) VisitProposeTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -951,9 +1208,9 @@ func (response UpdateTag409JSONResponse) VisitUpdateTagResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// GetDictation Whether dictation is available (an Anthropic API key is configured)
-	// (GET /api/dictation)
-	GetDictation(ctx context.Context, request GetDictationRequestObject) (GetDictationResponseObject, error)
+	// GetClaude Whether Claude features (dictation, tag proposals) are available, i.e. an Anthropic API key is configured
+	// (GET /api/claude)
+	GetClaude(ctx context.Context, request GetClaudeRequestObject) (GetClaudeResponseObject, error)
 	// DraftItems Read item drafts out of a dictated transcript, for review before saving
 	// (POST /api/dictation/drafts)
 	DraftItems(ctx context.Context, request DraftItemsRequestObject) (DraftItemsResponseObject, error)
@@ -963,6 +1220,9 @@ type StrictServerInterface interface {
 	// CreateItem Add an item, creating any tags in its tag paths that are missing
 	// (POST /api/items)
 	CreateItem(ctx context.Context, request CreateItemRequestObject) (CreateItemResponseObject, error)
+	// AddItemTags Add tags to several items in one transaction, keeping the tags they have
+	// (POST /api/items/tags)
+	AddItemTags(ctx context.Context, request AddItemTagsRequestObject) (AddItemTagsResponseObject, error)
 
 	// (DELETE /api/items/{id})
 	DeleteItem(ctx context.Context, request DeleteItemRequestObject) (DeleteItemResponseObject, error)
@@ -972,6 +1232,12 @@ type StrictServerInterface interface {
 	// UpdateItem Replace an item, including its whole set of tags
 	// (PUT /api/items/{id})
 	UpdateItem(ctx context.Context, request UpdateItemRequestObject) (UpdateItemResponseObject, error)
+	// Organise Ask Claude for one proposed tag in the Type dimension for each item without one, biggest first, at most 40
+	// (POST /api/organise)
+	Organise(ctx context.Context, request OrganiseRequestObject) (OrganiseResponseObject, error)
+	// ProposeTags Ask Claude for up to three proposed tags in the Type dimension for one item, saved or not
+	// (POST /api/tag-proposals)
+	ProposeTags(ctx context.Context, request ProposeTagsRequestObject) (ProposeTagsResponseObject, error)
 	// ListTags List every tag, sorted by path
 	// (GET /api/tags)
 	ListTags(ctx context.Context, request ListTagsRequestObject) (ListTagsResponseObject, error)
@@ -1025,23 +1291,23 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
-// GetDictation operation middleware
-func (sh *strictHandler) GetDictation(w http.ResponseWriter, r *http.Request) {
-	var request GetDictationRequestObject
+// GetClaude operation middleware
+func (sh *strictHandler) GetClaude(w http.ResponseWriter, r *http.Request) {
+	var request GetClaudeRequestObject
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetDictation(ctx, request.(GetDictationRequestObject))
+		return sh.ssi.GetClaude(ctx, request.(GetClaudeRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetDictation")
+		handler = middleware(handler, "GetClaude")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetDictationResponseObject); ok {
-		if err := validResponse.VisitGetDictationResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetClaudeResponseObject); ok {
+		if err := validResponse.VisitGetClaudeResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1135,6 +1401,37 @@ func (sh *strictHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AddItemTags operation middleware
+func (sh *strictHandler) AddItemTags(w http.ResponseWriter, r *http.Request) {
+	var request AddItemTagsRequestObject
+
+	var body AddItemTagsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddItemTags(ctx, request.(AddItemTagsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddItemTags")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddItemTagsResponseObject); ok {
+		if err := validResponse.VisitAddItemTagsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeleteItem operation middleware
 func (sh *strictHandler) DeleteItem(w http.ResponseWriter, r *http.Request, id ID) {
 	var request DeleteItemRequestObject
@@ -1213,6 +1510,61 @@ func (sh *strictHandler) UpdateItem(w http.ResponseWriter, r *http.Request, id I
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateItemResponseObject); ok {
 		if err := validResponse.VisitUpdateItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Organise operation middleware
+func (sh *strictHandler) Organise(w http.ResponseWriter, r *http.Request) {
+	var request OrganiseRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Organise(ctx, request.(OrganiseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Organise")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(OrganiseResponseObject); ok {
+		if err := validResponse.VisitOrganiseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ProposeTags operation middleware
+func (sh *strictHandler) ProposeTags(w http.ResponseWriter, r *http.Request) {
+	var request ProposeTagsRequestObject
+
+	var body ProposeTagsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ProposeTags(ctx, request.(ProposeTagsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ProposeTags")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ProposeTagsResponseObject); ok {
+		if err := validResponse.VisitProposeTagsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

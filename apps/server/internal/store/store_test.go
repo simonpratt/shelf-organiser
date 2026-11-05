@@ -282,3 +282,40 @@ func TestTagCountsCoverTheSubtreeAndCountEachItemOnce(t *testing.T) {
 		}
 	}
 }
+
+func TestAddItemTagsKeepsExistingTagsAndChangesNothingOnAFailure(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	mower, err := s.CreateItem(ctx, ItemInput{Name: "Mower", Litres: 300, Quantity: 1, Tags: [][]string{{"Location", "Shed"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tent, err := s.CreateItem(ctx, ItemInput{Name: "Tent", Litres: 40, Quantity: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// An unknown item rolls back the whole batch, including the new tags.
+	err = s.AddItemTags(ctx, []TagAssignment{{ItemID: mower.ID, Tags: [][]string{{"Type", "Garden"}}}, {ItemID: 999, Tags: [][]string{{"Type", "Camping"}}}})
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v; want ErrNotFound", err)
+	}
+	if tags, _ := s.ListTags(ctx); !slices.Equal(paths(tags), []string{"Location", "Location/Shed"}) {
+		t.Errorf("tags after a failed batch = %v; want no new ones", paths(tags))
+	}
+
+	if err := s.AddItemTags(ctx, []TagAssignment{
+		{ItemID: mower.ID, Tags: [][]string{{"type", "Garden"}}},
+		{ItemID: tent.ID, Tags: [][]string{{"Type", "Camping"}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.GetItem(ctx, mower.ID)
+	if !slices.Equal(refPaths(got.Tags), []string{"Location/Shed", "type/Garden"}) {
+		t.Errorf("mower tags = %v; want its Location kept and the Type added", refPaths(got.Tags))
+	}
+	got, _ = s.GetItem(ctx, tent.ID)
+	if !slices.Equal(refPaths(got.Tags), []string{"type/Camping"}) {
+		t.Errorf("tent tags = %v; want the type tag created just before reused", refPaths(got.Tags))
+	}
+}

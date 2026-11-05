@@ -1,7 +1,7 @@
 // Item queries and mutations. Saving an item can create tags, so writes also
 // refresh the tag list.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, unwrap, type ItemInput } from "./client";
+import { api, unwrap, type ItemInput, type TagPath } from "./client";
 
 export const itemKeys = { all: ["items"] as const };
 
@@ -48,6 +48,17 @@ export function useDeleteItem() {
   return useMutation({
     mutationFn: async (id: number) => {
       unwrap(await api.DELETE("/api/items/{id}", { params: { path: { id } } }));
+    },
+    onSuccess: invalidate,
+  });
+}
+
+/** Adds tags to several items in one transaction, keeping the tags they have. */
+export function useAddItemTags() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (assignments: { itemId: number; tags: TagPath[] }[]) => {
+      unwrap(await api.POST("/api/items/tags", { body: { assignments } }));
     },
     onSuccess: invalidate,
   });
