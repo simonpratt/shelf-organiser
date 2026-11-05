@@ -1,7 +1,8 @@
 // Dictation (T2, ADR 0001): say a list into the keyboard's microphone, let
 // Claude turn it into drafts, check and correct them, then save them all.
-// Nothing is saved until "Save all", and the dictation is kept for a redo.
-import { useState, type FormEvent } from "react";
+// Nothing is saved until "Save all". The dictation and drafts are kept for the
+// tab until then, so Back or a reload loses nothing.
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { useDictation, useDraftItems } from "../api/dictation";
 import { useCreateItemDetached } from "../api/items";
@@ -18,6 +19,7 @@ import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
 import { fromDraft, saveInOrder, toInputs } from "../items/drafts";
 import type { FormErrors, ItemForm } from "../items/form";
+import { readSession, writeSession } from "../session/store";
 
 const back = { to: "/items/new", label: "Back to adding an item" };
 
@@ -43,6 +45,8 @@ export function DictatePage() {
 }
 
 type Drafted = { key: number; form: ItemForm; errors: FormErrors };
+type Kept = { transcript: string; drafts: Drafted[] | null };
+const KEPT = "dictation";
 
 function Dictation() {
   const navigate = useNavigate();
@@ -50,11 +54,13 @@ function Dictation() {
   const tags = useTags();
   const draftItems = useDraftItems();
   const createItem = useCreateItemDetached();
-  const [transcript, setTranscript] = useState("");
-  const [drafts, setDrafts] = useState<Drafted[] | null>(null);
+  const [kept] = useState(() => readSession<Kept>(KEPT, { transcript: "", drafts: null }));
+  const [transcript, setTranscript] = useState(kept.transcript);
+  const [drafts, setDrafts] = useState<Drafted[] | null>(kept.drafts);
   const [nothingFound, setNothingFound] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  useEffect(() => writeSession(KEPT, { transcript, drafts }), [transcript, drafts]);
 
   const onRead = async (e: FormEvent) => {
     e.preventDefault();
@@ -87,6 +93,8 @@ function Dictation() {
       setSaveError(`${saved > 0 ? `Saved ${saved}, but couldn't save the rest` : "Couldn't save"}: ${error.message}`);
       return;
     }
+    // Navigating away unmounts this screen, so nothing writes the drafts back.
+    writeSession(KEPT, null);
     toast({ message: saved === 1 ? "Saved 1 item" : `Saved ${saved} items` });
     navigate("/");
   };
@@ -117,7 +125,8 @@ function Dictation() {
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <PageHeader title="Check the drafts" summary="Fix anything Claude got wrong, then save. Nothing is saved yet."
+      <PageHeader title="Check the drafts" back={back}
+        summary="Fix anything Claude got wrong, then save. Nothing is saved yet; your drafts are kept until you do."
         actions={<Button variant="ghost" onClick={() => setDrafts(null)} disabled={saving}>Edit dictation</Button>} />
       {drafts.length === 0 ? (
         <EmptyState title="No drafts left" action={<Button onClick={() => setDrafts(null)}>Dictate again</Button>}>

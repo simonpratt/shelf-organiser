@@ -1,7 +1,8 @@
 // Short-lived status message after an action ("Saved Tent"), with an optional
 // action such as Undo. One at a time; a new toast replaces the last. It sits
-// above the nav bar or a form's ActionBar, and gets out of the way as soon as
-// the user focuses a field, so it never hides what they are typing into.
+// above the nav bar and the Add button (or a form's ActionBar), and gets out
+// of the way as soon as the user focuses a field, so it never hides what they
+// are typing into.
 import { createContext, use, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Button } from "./Button";
 
@@ -34,7 +35,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext value={show}>
       {children}
-      <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-20 z-20 flex justify-center px-4">
+      <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-36 z-20 flex justify-center px-4">
         {toast && <Toast key={toast.key} message={toast.message} action={toast.action} onDismiss={() => setToast(null)} />}
       </div>
     </ToastContext>

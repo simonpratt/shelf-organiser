@@ -28,6 +28,11 @@ test("dictates a list, corrects the drafts and saves them all", async ({ page, r
   await page.getByRole("article", { name: "Drill" }).getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("article", { name: "Drill" })).toContainText("Shoebox (10 L)");
 
+  // Going back and returning keeps the corrected drafts.
+  await page.getByRole("link", { name: "Back to adding an item" }).click();
+  await page.getByRole("link", { name: "Dictate items" }).click();
+  await expect(page.getByRole("article", { name: "Drill" })).toContainText("Shoebox (10 L)");
+
   await page.getByRole("button", { name: "Save all 2 items" }).click();
   await expect(page.getByText("Saved 2 items")).toBeVisible();
   await expect(page.getByRole("list", { name: "Items" }).getByRole("listitem")).toHaveCount(2);
