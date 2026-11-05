@@ -168,7 +168,7 @@ components:
       example: ["Type", "Camping", "Tents"]
     Tag:
       type: object
-      required: [id, name, parentId, path, itemCount]
+      required: [id, name, parentId, path, itemCount, totalSpace]
       properties:
         id: { type: integer, format: int64 }
         name: { type: string }
@@ -178,8 +178,12 @@ components:
           nullable: true
         path: { $ref: "#/components/schemas/TagPath" }
         itemCount:
-          description: Items tagged with exactly this tag (not its descendants)
+          description: Items tagged with this tag or any tag inside it, each counted once
           type: integer
+        totalSpace:
+          description: Total space, in litres, of the items counted in itemCount
+          type: number
+          format: double
     TagRef:
       type: object
       required: [id, path]

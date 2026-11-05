@@ -102,8 +102,13 @@ export interface components {
             /** Format: int64 */
             parentId: number | null;
             path: components["schemas"]["TagPath"];
-            /** @description Items tagged with exactly this tag (not its descendants) */
+            /** @description Items tagged with this tag or any tag inside it, each counted once */
             itemCount: number;
+            /**
+             * Format: double
+             * @description Total space, in litres, of the items counted in itemCount
+             */
+            totalSpace: number;
         };
         TagRef: {
             /** Format: int64 */

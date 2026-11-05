@@ -248,3 +248,37 @@ func TestDeleteItemKeepsTags(t *testing.T) {
 		t.Errorf("tags = %+v; want Type with no items", tags)
 	}
 }
+
+func TestTagCountsCoverTheSubtreeAndCountEachItemOnce(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	// Tent sits under Location twice (Shed and Shed/Shelf 2), so it must count once.
+	mustCreate := func(in ItemInput) {
+		if _, err := s.CreateItem(ctx, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustCreate(ItemInput{Name: "Tent", Litres: 30, Quantity: 2, Tags: [][]string{{"Location", "Shed"}, {"Location", "Shed", "Shelf 2"}}})
+	mustCreate(ItemInput{Name: "Drill", Litres: 5, Quantity: 1, Tags: [][]string{{"Location", "Garage"}}})
+	mustCreate(ItemInput{Name: "Bike", Litres: 200, Quantity: 1})
+
+	tags, err := s.ListTags(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string][2]float64{}
+	for _, tg := range tags {
+		got[strings.Join(tg.Path, "/")] = [2]float64{float64(tg.ItemCount), tg.TotalSpace}
+	}
+	want := map[string][2]float64{
+		"Location":              {2, 65},
+		"Location/Garage":       {1, 5},
+		"Location/Shed":         {1, 60},
+		"Location/Shed/Shelf 2": {1, 60},
+	}
+	for path, w := range want {
+		if got[path] != w {
+			t.Errorf("%s: (items, litres) = %v; want %v", path, got[path], w)
+		}
+	}
+}

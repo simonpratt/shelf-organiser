@@ -76,6 +76,8 @@ export default function ComponentsPage() {
         <TextField label="With hint" value="" onChange={() => {}} hint="A hint below the field" placeholder="Placeholder" />
         <TextField label="With error" value="" onChange={() => {}} error="Give the item a name" />
         <TextField label="With suffix" value="25" onChange={() => {}} suffix="L" />
+        <TextField label="With action" value="" onChange={() => {}} hint="The button lines up with the input"
+          action={<Button variant="primary">Add</Button>} />
         <TextField label="Multiline" multiline value="A note" onChange={() => {}} />
       </Section>
       <Section title="SearchField"><SearchField label="Search" value={text} onChange={setText} placeholder="Search" /></Section>
@@ -130,9 +132,9 @@ export default function ComponentsPage() {
       </Section>
       <Section title="TagTreeRow">
         <div>
-          <TagTreeRow name="Location" depth={0} itemCount={0} onSelect={() => {}} />
-          <TagTreeRow name="Shed" depth={1} itemCount={12} onSelect={() => {}} />
-          <TagTreeRow name="Shelf 2" depth={2} itemCount={1} onSelect={() => {}} />
+          <TagTreeRow name="Location" depth={0} itemCount={0} totalSpace={0} onSelect={() => {}} />
+          <TagTreeRow name="Shed" depth={1} itemCount={12} totalSpace={640} onSelect={() => {}} />
+          <TagTreeRow name="Shelf 2" depth={2} itemCount={1} totalSpace={40} onSelect={() => {}} />
         </div>
       </Section>
       <Section title="BottomNav"><Frame><BottomNav /></Frame></Section>

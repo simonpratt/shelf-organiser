@@ -14,8 +14,11 @@ type Tag struct {
 	Name     string
 	ParentID *int64
 	// Path is the tag's names from its top-level ancestor down to itself.
-	Path      []string
-	ItemCount int
+	Path []string
+	// ItemCount and TotalSpace cover the tag's whole subtree, counting an
+	// item tagged at several levels once.
+	ItemCount  int
+	TotalSpace float64
 }
 
 // TagRef is a tag as attached to an item.
@@ -51,8 +54,19 @@ func cleanTagName(name string) (string, error) {
 // loadTags returns every tag keyed by id, with paths filled in.
 func loadTags(ctx context.Context, q queryer) (map[int64]*Tag, error) {
 	rows, err := q.QueryContext(ctx, `
-		SELECT t.id, t.name, t.parent_id, COUNT(it.item_id)
-		FROM tags t LEFT JOIN item_tags it ON it.tag_id = t.id
+		WITH RECURSIVE sub(top, id) AS (
+			SELECT id, id FROM tags
+			UNION ALL
+			SELECT sub.top, t.id FROM tags t JOIN sub ON t.parent_id = sub.id
+		),
+		linked AS (
+			SELECT DISTINCT sub.top, i.id, i.litres * i.quantity AS space
+			FROM sub
+			JOIN item_tags it ON it.tag_id = sub.id
+			JOIN items i ON i.id = it.item_id
+		)
+		SELECT t.id, t.name, t.parent_id, COUNT(l.id), COALESCE(SUM(l.space), 0)
+		FROM tags t LEFT JOIN linked l ON l.top = t.id
 		GROUP BY t.id`)
 	if err != nil {
 		return nil, err
@@ -62,7 +76,7 @@ func loadTags(ctx context.Context, q queryer) (map[int64]*Tag, error) {
 	for rows.Next() {
 		var t Tag
 		var parent sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.Name, &parent, &t.ItemCount); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &parent, &t.ItemCount, &t.TotalSpace); err != nil {
 			return nil, err
 		}
 		if parent.Valid {

@@ -41,13 +41,10 @@ export function TagsPage() {
   return (
     <AppShell>
       <PageHeader title="Tags" summary="Top-level tags are dimensions, like Location or Type. Nest the rest inside them." />
-      <form onSubmit={onAdd} className="flex items-end gap-2">
-        <div className="flex-1">
-          <TextField label="New tag" value={draft} onChange={setDraft} placeholder="e.g. Location/Shed/Shelf 2"
-            autoCapitalize="words" hint="Use / to nest. Missing parents are created." />
-        </div>
-        <Button type="submit" variant="primary" icon={<PlusIcon />} busy={ensure.isPending} disabled={!draft.trim()}
-          className="mb-7">Add</Button>
+      <form onSubmit={onAdd}>
+        <TextField label="New tag" value={draft} onChange={setDraft} placeholder="e.g. Location/Shed/Shelf 2"
+          autoCapitalize="words" hint="Use / to nest. Missing parents are created."
+          action={<Button type="submit" variant="primary" icon={<PlusIcon />} busy={ensure.isPending} disabled={!draft.trim()}>Add</Button>} />
       </form>
       {ensure.error && <Banner>Couldn't add the tag: {ensure.error.message}</Banner>}
       {tags.isPending ? (
@@ -60,7 +57,7 @@ export function TagsPage() {
         <ul aria-label="Tags" className="rounded-md border-t border-border">
           {tags.data.map((t) => (
             <li key={t.id}>
-              <TagTreeRow name={t.name} depth={t.path.length - 1} itemCount={t.itemCount} onSelect={() => setEditing(t)} />
+              <TagTreeRow name={t.name} depth={t.path.length - 1} itemCount={t.itemCount} totalSpace={t.totalSpace} onSelect={() => setEditing(t)} />
             </li>
           ))}
         </ul>

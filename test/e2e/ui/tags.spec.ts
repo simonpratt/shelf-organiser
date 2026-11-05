@@ -4,6 +4,8 @@ import { expect, test } from "../fixtures/test";
 test("renames and moves a tag, then deletes it with its sub-tags while keeping the items", async ({ page, request }) => {
   await createItem(request, { name: "Tent", litres: 30, tags: [["Location", "Shed", "Shelf 2"], ["Type", "Camping"]] });
   await page.goto("/tags");
+  // Counts cover the whole subtree, not just items tagged with Location itself.
+  await expect(page.getByRole("button", { name: /^Location/ })).toContainText("1 item · 30 L");
 
   // Rename Shed to Garage and move it to the top level.
   await page.getByRole("button", { name: /^Shed/ }).click();

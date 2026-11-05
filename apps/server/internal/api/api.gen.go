@@ -51,7 +51,7 @@ type ItemInput struct {
 type Tag struct {
 	Id int64 `json:"id"`
 
-	// ItemCount Items tagged with exactly this tag (not its descendants)
+	// ItemCount Items tagged with this tag or any tag inside it, each counted once
 	ItemCount int    `json:"itemCount"`
 	Name      string `json:"name"`
 	ParentId  *int64 `json:"parentId"`
@@ -60,6 +60,9 @@ type Tag struct {
 	//
 	// Example: ["Type","Camping","Tents"]
 	Path TagPath `json:"path"`
+
+	// TotalSpace Total space, in litres, of the items counted in itemCount
+	TotalSpace float64 `json:"totalSpace"`
 }
 
 // TagPath Tag names from the top-level tag down
