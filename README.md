@@ -3,6 +3,7 @@
 A self-hosted app for cataloguing what's in your shed or back room, so you can see what takes up the space.
 
 - Add items from your phone with a one-tap size preset, or type the litres
+- Dictate a list with your phone keyboard's microphone; Claude turns it into drafts you check before saving (optional, needs an Anthropic API key)
 - Tag items with nested tags such as `Location › Shed › Shelf 2`, creating them as you type
 - See every item ranked by the total space it takes
 - Search by name, note or tag, and filter to any tag and everything inside it
@@ -27,6 +28,7 @@ No image is published yet; build it with `docker build -t shelf-organiser .`. It
 |---|---|---|
 | `DATA_DIR` | `/data` | Directory holding `shelf.db` |
 | `PORT` | `8080` | Listen port |
+| `ANTHROPIC_API_KEY` | empty | Turns on dictation. Without it the app is typed entry only |
 
 Test-only settings are in `.env.example`.
 
@@ -34,6 +36,7 @@ Test-only settings are in `.env.example`.
 
 - There is no login: run it on a trusted LAN only.
 - Deleting a tag also deletes the tags inside it; the items stay.
+- Dictation sends only the text of what you said, plus your tag paths, to Anthropic; the app never handles audio (`docs/adr/0001-dictation-via-keyboard-and-claude.md`).
 
 ## Development
 
