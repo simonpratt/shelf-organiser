@@ -12,7 +12,7 @@ Run everything through the `Makefile`:
 - `make test`: unit tests only.
 - `make e2e`: builds `bin/shelf-organiser`, then runs Playwright (`api` and Pixel 7 `ui` projects) against it on :8181.
 - `make docker`: builds the image. `make smoke` runs the `@smoke` tests against `docker run --rm -p 8080:8080 shelf-organiser`.
-- `make dev`: Go on :8080 and Vite on :5173 (proxying `/api`). `make generate` after editing the OpenAPI spec.
+- `make dev`: Go on :8080 and Vite on :5173 (proxying `/api`). `make dev-fake` is the same with dictation answered by the shared Anthropic fake. `make generate` after editing the OpenAPI spec.
 
 Gotchas:
 

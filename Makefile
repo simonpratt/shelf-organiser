@@ -2,7 +2,7 @@ APP := shelf-organiser
 # Dev data lives outside the repo: SQLite misbehaves on the sandbox's host mount.
 DEV_DATA_DIR ?= $(HOME)/.local/share/$(APP)
 
-.PHONY: install generate dev build lint test check e2e smoke docker
+.PHONY: install generate dev dev-fake build lint test check e2e smoke docker
 
 install:
 	pnpm install --frozen-lockfile
@@ -17,6 +17,12 @@ dev:
 	mkdir -p $(DEV_DATA_DIR)
 	DATA_DIR=$(DEV_DATA_DIR) go run ./apps/server/cmd/$(APP) & \
 	pnpm --filter ./apps/web dev; kill %1
+
+# make dev with dictation answered by the shared Anthropic fake (test mode, so
+# POST /api/test/reset is mounted too); no API key or network needed.
+dev-fake:
+	APP_TEST_MODE=1 ANTHROPIC_API_KEY=test-anthropic-key \
+	ANTHROPIC_BASE_URL=http://localhost:8080/api/test/anthropic/ $(MAKE) dev
 
 # The client first, so the binary embeds the current build.
 build:
