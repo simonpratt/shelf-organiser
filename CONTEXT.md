@@ -24,6 +24,14 @@ _Avoid_: count, amount
 An item's size times its quantity; what the app sums and ranks by.
 _Avoid_: total volume, footprint
 
+**Dictation**:
+A spoken list of items, turned into text by the phone keyboard, that Claude reads into drafts.
+_Avoid_: voice note, recording, transcript (in UI copy)
+
+**Draft**:
+A proposed item read from a dictation, which the user reviews and edits before it is saved as an item.
+_Avoid_: suggestion, pending item
+
 ## Tags
 
 **Tag**:

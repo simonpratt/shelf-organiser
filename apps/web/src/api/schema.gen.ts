@@ -79,6 +79,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dictation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether dictation is available (an Anthropic API key is configured) */
+        get: operations["getDictation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dictation/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read item drafts out of a dictated transcript, for review before saving
+         * @description Claude reads the transcript and suggests existing tags only. Nothing
+         *     is saved; the client saves each reviewed draft with createItem.
+         */
+        post: operations["draftItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -138,6 +176,18 @@ export interface components {
             note?: string;
             /** @description Tag paths; any missing tags (and ancestors) are created */
             tags?: components["schemas"]["TagPath"][];
+        };
+        /** @description A proposed item read from a dictation, not yet saved */
+        Draft: {
+            name: string;
+            quantity: number;
+            /**
+             * Format: double
+             * @description Estimated volume of one unit; null when Claude gave no usable estimate
+             */
+            litres: number | null;
+            /** @description Existing tag paths only */
+            tags: components["schemas"]["TagPath"][];
         };
     };
     responses: {
@@ -393,6 +443,76 @@ export interface operations {
                 content?: never;
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    getDictation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dictation status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                    };
+                };
+            };
+        };
+    };
+    draftItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description What was dictated, at most 4000 characters */
+                    transcript: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The drafts, in the order they were dictated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        drafts: components["schemas"]["Draft"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Claude couldn't be reached or gave no usable answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Dictation isn't set up (no Anthropic API key) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }

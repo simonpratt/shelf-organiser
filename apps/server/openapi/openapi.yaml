@@ -136,6 +136,61 @@ paths:
       responses:
         "204": { description: Deleted }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/dictation:
+    get:
+      operationId: getDictation
+      summary: Whether dictation is available (an Anthropic API key is configured)
+      responses:
+        "200":
+          description: Dictation status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled]
+                properties:
+                  enabled: { type: boolean }
+  /api/dictation/drafts:
+    post:
+      operationId: draftItems
+      summary: Read item drafts out of a dictated transcript, for review before saving
+      description: |
+        Claude reads the transcript and suggests existing tags only. Nothing
+        is saved; the client saves each reviewed draft with createItem.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transcript]
+              properties:
+                transcript:
+                  type: string
+                  description: What was dictated, at most 4000 characters
+      responses:
+        "200":
+          description: The drafts, in the order they were dictated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [drafts]
+                properties:
+                  drafts:
+                    type: array
+                    items: { $ref: "#/components/schemas/Draft" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "502":
+          description: Claude couldn't be reached or gave no usable answer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Dictation isn't set up (no Anthropic API key)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 components:
   parameters:
     ID:
@@ -221,5 +276,21 @@ components:
         note: { type: string }
         tags:
           description: Tag paths; any missing tags (and ancestors) are created
+          type: array
+          items: { $ref: "#/components/schemas/TagPath" }
+    Draft:
+      description: A proposed item read from a dictation, not yet saved
+      type: object
+      required: [name, quantity, litres, tags]
+      properties:
+        name: { type: string }
+        quantity: { type: integer }
+        litres:
+          description: Estimated volume of one unit; null when Claude gave no usable estimate
+          type: number
+          format: double
+          nullable: true
+        tags:
+          description: Existing tag paths only
           type: array
           items: { $ref: "#/components/schemas/TagPath" }

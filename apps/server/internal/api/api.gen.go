@@ -15,6 +15,17 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Draft A proposed item read from a dictation, not yet saved
+type Draft struct {
+	// Litres Estimated volume of one unit; null when Claude gave no usable estimate
+	Litres   *float64 `json:"litres"`
+	Name     string   `json:"name"`
+	Quantity int      `json:"quantity"`
+
+	// Tags Existing tag paths only
+	Tags []TagPath `json:"tags"`
+}
+
 // Error defines model for Error.
 type Error struct {
 	Error string `json:"error"`
@@ -89,6 +100,12 @@ type BadRequest = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// DraftItemsJSONBody defines parameters for DraftItems.
+type DraftItemsJSONBody struct {
+	// Transcript What was dictated, at most 4000 characters
+	Transcript string `json:"transcript"`
+}
+
 // EnsureTagJSONBody defines parameters for EnsureTag.
 type EnsureTagJSONBody struct {
 	// Path Tag names from the top-level tag down
@@ -102,6 +119,9 @@ type UpdateTagJSONBody struct {
 	Name     string `json:"name"`
 	ParentId *int64 `json:"parentId"`
 }
+
+// DraftItemsJSONRequestBody defines body for DraftItems for application/json ContentType.
+type DraftItemsJSONRequestBody DraftItemsJSONBody
 
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
 type CreateItemJSONRequestBody = ItemInput
@@ -117,6 +137,12 @@ type UpdateTagJSONRequestBody UpdateTagJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// GetDictation Whether dictation is available (an Anthropic API key is configured)
+	// (GET /api/dictation)
+	GetDictation(w http.ResponseWriter, r *http.Request)
+	// DraftItems Read item drafts out of a dictated transcript, for review before saving
+	// (POST /api/dictation/drafts)
+	DraftItems(w http.ResponseWriter, r *http.Request)
 	// ListItems List every item, largest total space first
 	// (GET /api/items)
 	ListItems(w http.ResponseWriter, r *http.Request)
@@ -154,6 +180,34 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetDictation operation middleware
+func (siw *ServerInterfaceWrapper) GetDictation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDictation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DraftItems operation middleware
+func (siw *ServerInterfaceWrapper) DraftItems(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DraftItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListItems operation middleware
 func (siw *ServerInterfaceWrapper) ListItems(w http.ResponseWriter, r *http.Request) {
@@ -470,6 +524,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/tags", wrapper.EnsureTag)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/tags/{id}", wrapper.DeleteTag)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/tags/{id}", wrapper.UpdateTag)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dictation", wrapper.GetDictation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dictation/drafts", wrapper.DraftItems)
 
 	return m
 }
@@ -477,6 +533,95 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 type BadRequestJSONResponse Error
 
 type NotFoundJSONResponse Error
+
+type GetDictationRequestObject struct {
+}
+
+type GetDictationResponseObject interface {
+	VisitGetDictationResponse(w http.ResponseWriter) error
+}
+
+type GetDictation200JSONResponse struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (response GetDictation200JSONResponse) VisitGetDictationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DraftItemsRequestObject struct {
+	Body *DraftItemsJSONRequestBody
+}
+
+type DraftItemsResponseObject interface {
+	VisitDraftItemsResponse(w http.ResponseWriter) error
+}
+
+type DraftItems200JSONResponse struct {
+	Drafts []Draft `json:"drafts"`
+}
+
+func (response DraftItems200JSONResponse) VisitDraftItemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DraftItems400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DraftItems400JSONResponse) VisitDraftItemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DraftItems502JSONResponse Error
+
+func (response DraftItems502JSONResponse) VisitDraftItemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DraftItems503JSONResponse Error
+
+func (response DraftItems503JSONResponse) VisitDraftItemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type ListItemsRequestObject struct {
 }
@@ -806,6 +951,12 @@ func (response UpdateTag409JSONResponse) VisitUpdateTagResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// GetDictation Whether dictation is available (an Anthropic API key is configured)
+	// (GET /api/dictation)
+	GetDictation(ctx context.Context, request GetDictationRequestObject) (GetDictationResponseObject, error)
+	// DraftItems Read item drafts out of a dictated transcript, for review before saving
+	// (POST /api/dictation/drafts)
+	DraftItems(ctx context.Context, request DraftItemsRequestObject) (DraftItemsResponseObject, error)
 	// ListItems List every item, largest total space first
 	// (GET /api/items)
 	ListItems(ctx context.Context, request ListItemsRequestObject) (ListItemsResponseObject, error)
@@ -872,6 +1023,61 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// GetDictation operation middleware
+func (sh *strictHandler) GetDictation(w http.ResponseWriter, r *http.Request) {
+	var request GetDictationRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDictation(ctx, request.(GetDictationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDictation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetDictationResponseObject); ok {
+		if err := validResponse.VisitGetDictationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DraftItems operation middleware
+func (sh *strictHandler) DraftItems(w http.ResponseWriter, r *http.Request) {
+	var request DraftItemsRequestObject
+
+	var body DraftItemsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DraftItems(ctx, request.(DraftItemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DraftItems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DraftItemsResponseObject); ok {
+		if err := validResponse.VisitDraftItemsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListItems operation middleware

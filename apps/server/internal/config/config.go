@@ -4,6 +4,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -12,9 +14,41 @@ import (
 type Config struct {
 	DataDir string // where shelf.db lives
 	Port    int    // 0 picks a free port (tests)
-	// TestMode mounts the e2e suite's reset route. Never set it in production.
+	// TestMode mounts the e2e suite's test routes. Never set it in production.
 	TestMode bool
+	// AnthropicAPIKey turns on dictation; without it the app is typed entry only.
+	AnthropicAPIKey Secret
+	// AnthropicBaseURL overrides the Anthropic API's address; empty for the real one.
+	AnthropicBaseURL string
 }
+
+// Secret holds a value that must never be printed or logged. Every
+// formatting path (fmt verbs, slog) renders it as a placeholder; call Reveal
+// to get the underlying value where it is genuinely needed.
+type Secret struct{ value string }
+
+// Reveal returns the secret value.
+func (s Secret) Reveal() string { return s.value }
+
+// IsSet reports whether the secret is non-empty.
+func (s Secret) IsSet() bool { return s.value != "" }
+
+func (s Secret) String() string {
+	if s.value == "" {
+		return ""
+	}
+	return "[redacted]"
+}
+
+// GoString keeps %#v from printing the value.
+func (s Secret) GoString() string { return s.String() }
+
+// Format keeps every fmt verb, including %+v on a containing struct, from
+// printing the value.
+func (s Secret) Format(f fmt.State, _ rune) { _, _ = f.Write([]byte(s.String())) }
+
+// LogValue keeps slog from printing the value.
+func (s Secret) LogValue() slog.Value { return slog.StringValue(s.String()) }
 
 // Load reads the configuration using getenv (normally os.Getenv). It returns
 // one error naming every invalid value.
@@ -39,6 +73,15 @@ func Load(getenv func(string) string) (Config, error) {
 		cfg.TestMode = true
 	default:
 		errs = append(errs, fmt.Errorf("APP_TEST_MODE must be 1 or 0, got %q", v))
+	}
+
+	cfg.AnthropicAPIKey = Secret{get("ANTHROPIC_API_KEY")}
+	if u := get("ANTHROPIC_BASE_URL"); u != "" {
+		parsed, err := url.Parse(u)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			errs = append(errs, fmt.Errorf("ANTHROPIC_BASE_URL must be an http:// or https:// URL, got %q", u))
+		}
+		cfg.AnthropicBaseURL = u
 	}
 
 	if len(errs) > 0 {

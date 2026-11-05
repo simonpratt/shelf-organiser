@@ -18,6 +18,8 @@ import (
 
 	"shelf-organiser/apps/server/internal/api"
 	"shelf-organiser/apps/server/internal/config"
+	"shelf-organiser/apps/server/internal/dictation"
+	"shelf-organiser/apps/server/internal/dictation/claudefake"
 	"shelf-organiser/apps/server/internal/store"
 	"shelf-organiser/apps/server/internal/web"
 )
@@ -58,7 +60,8 @@ func run(ctx context.Context, getenv func(string) string, logOut io.Writer, onLi
 		ReadHeaderTimeout: 10 * time.Second,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
 	}
-	logger.Info("listening", "addr", ln.Addr().String(), "data_dir", cfg.DataDir, "test_mode", cfg.TestMode)
+	logger.Info("listening", "addr", ln.Addr().String(), "data_dir", cfg.DataDir, "test_mode", cfg.TestMode,
+		"dictation", cfg.AnthropicAPIKey.IsSet())
 	if onListen != nil {
 		onListen(ln.Addr())
 	}
@@ -79,13 +82,23 @@ func run(ctx context.Context, getenv func(string) string, logOut io.Writer, onLi
 	return nil
 }
 
+// testAnthropicKey is the only API key the test-mode fake Anthropic API accepts.
+const testAnthropicKey = "test-anthropic-key"
+
 func newHandler(cfg config.Config, st *store.Store, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("ok\n"))
 	})
-	api.Register(mux, st, logger)
+	var extractor dictation.Extractor
+	if cfg.AnthropicAPIKey.IsSet() {
+		extractor = dictation.NewClaude(cfg.AnthropicAPIKey.Reveal(), cfg.AnthropicBaseURL)
+	}
+	api.Register(mux, st, extractor, logger)
 	if cfg.TestMode {
+		// The e2e suite points ANTHROPIC_BASE_URL here, so dictation runs
+		// against the shared fake rather than the real API.
+		mux.Handle("/api/test/anthropic/", http.StripPrefix("/api/test/anthropic", claudefake.New(testAnthropicKey)))
 		// Lets the e2e suite start every test from an empty database.
 		mux.HandleFunc("POST /api/test/reset", func(w http.ResponseWriter, r *http.Request) {
 			if err := st.Reset(r.Context()); err != nil {

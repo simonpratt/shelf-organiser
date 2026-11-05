@@ -7,9 +7,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"shelf-organiser/apps/server/internal/dictation/claudefake"
 )
 
 // startApp boots the whole app through run(), as main does, on a free port
@@ -134,9 +137,12 @@ func TestItemRoundTripPersistsTagsAndReturnsErrorEnvelopes(t *testing.T) {
 	}
 }
 
-func TestResetRouteExistsOnlyInTestMode(t *testing.T) {
-	if code, _ := do(t, "POST", startApp(t, nil)+"/api/test/reset", ""); code != 404 {
-		t.Errorf("reset without test mode = %d; want 404", code)
+func TestTestRoutesExistOnlyInTestMode(t *testing.T) {
+	plain := startApp(t, nil)
+	for _, path := range []string{"/api/test/reset", "/api/test/anthropic/v1/messages"} {
+		if code, _ := do(t, "POST", plain+path, "{}"); code != 404 {
+			t.Errorf("%s without test mode = %d; want 404", path, code)
+		}
 	}
 
 	base := startApp(t, map[string]string{"APP_TEST_MODE": "1"})
@@ -170,5 +176,52 @@ func TestServesSpecAsWritten(t *testing.T) {
 	_ = json.Unmarshal(spec.Paths["/api/items"]["get"], &op)
 	if got := op.OperationID; got != "listItems" {
 		t.Errorf("operationId = %q; want listItems, as written in openapi.yaml", got)
+	}
+}
+
+func TestDictationIsOffWithoutAnAPIKey(t *testing.T) {
+	base := startApp(t, nil)
+	if _, body := do(t, "GET", base+"/api/dictation", ""); strings.TrimSpace(body) != `{"enabled":false}` {
+		t.Errorf("dictation status = %s; want disabled", body)
+	}
+	if code, _ := do(t, "POST", base+"/api/dictation/drafts", `{"transcript":"a tent"}`); code != 503 {
+		t.Errorf("drafts without a key = %d; want 503", code)
+	}
+}
+
+func TestDictationDraftsReuseExistingTagsAndSaveNothing(t *testing.T) {
+	fake := claudefake.New("sk-ant-app-test")
+	claude := httptest.NewServer(fake)
+	defer claude.Close()
+	base := startApp(t, map[string]string{"ANTHROPIC_API_KEY": "sk-ant-app-test", "ANTHROPIC_BASE_URL": claude.URL})
+
+	do(t, "POST", base+"/api/tags", `{"path":["Location","Shed"]}`)
+	if _, body := do(t, "GET", base+"/api/dictation", ""); strings.TrimSpace(body) != `{"enabled":true}` {
+		t.Errorf("dictation status = %s; want enabled", body)
+	}
+	code, body := do(t, "POST", base+"/api/dictation/drafts", `{"transcript":"two camping chairs, a drill in the shed"}`)
+	want := `{"drafts":[{"litres":40,"name":"Camping chairs","quantity":2,"tags":[]},` +
+		`{"litres":40,"name":"Drill in the shed","quantity":1,"tags":[["Location","Shed"]]}]}`
+	if code != 200 || strings.TrimSpace(body) != want {
+		t.Errorf("drafts = %d %s; want %s", code, body, want)
+	}
+	if _, items := do(t, "GET", base+"/api/items", ""); strings.TrimSpace(items) != "[]" {
+		t.Errorf("items after drafting = %s; want none saved", items)
+	}
+
+	for _, tc := range []struct {
+		name, body string
+		code       int
+	}{
+		{"empty transcript", `{"transcript":"  "}`, 400},
+		{"too long", `{"transcript":"` + strings.Repeat("a", 4001) + `"}`, 400},
+		{"Claude failing", `{"transcript":"a tent ` + claudefake.FailMarker + `"}`, 502},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, body := do(t, "POST", base+"/api/dictation/drafts", tc.body)
+			if code != tc.code || strings.Contains(body, "sk-ant") {
+				t.Errorf("got %d %s; want %d without the key", code, body, tc.code)
+			}
+		})
 	}
 }
