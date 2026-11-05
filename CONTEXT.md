@@ -53,5 +53,5 @@ _Avoid_: uncategorised, other
 ## Space map
 
 **Space map**:
-The treemap on the Space screen: one block per tag or item at the current level, its area its total space. An item counts once, under its most specific tag in the dimension.
+The treemap on the Space screen: one block per tag or item at the current level, its area its total space, with its contents laid out again inside it down to the items. An item counts once, under its most specific tag in the dimension. "All items" shows every item side by side, ungrouped.
 _Avoid_: chart, heatmap, graph

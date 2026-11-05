@@ -1,6 +1,7 @@
-// What takes up the space (T3): a treemap of one level of the breakdown by
-// the chosen dimension, with a breadcrumb back up and the same blocks as a
-// list (the text and screen-reader view). Dimension and level live in the URL,
+// What takes up the space (T3, T4): a nested treemap of the breakdown by the
+// chosen dimension (or every item, for All items), opened at one level, with
+// a breadcrumb back up and that level's blocks as a list (the text and
+// screen-reader view). Dimension and level live in the URL,
 // so Back steps back out and a view can be bookmarked.
 import { useNavigate, useSearchParams } from "react-router";
 import { useItems } from "../api/items";
@@ -27,8 +28,7 @@ export function SpacePage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const dimensions = (tags.data ?? []).filter((t) => t.parentId === null);
-  // Opens on the first dimension: under All tags, items tagged in several
-  // dimensions all count under the first, which skews the others.
+  // Opens on the first dimension; All items is the ungrouped view.
   const d = params.get("d");
   const dimension = d === ALL ? null : dimensions.find((t) => String(t.id) === d) ?? dimensions[0] ?? null;
 
@@ -75,14 +75,9 @@ export function SpacePage() {
     <AppShell>
       <PageHeader title={path.length > 1 ? current.name : "Space"} summary={summary} />
       <Select label="Dimension" value={dimension ? String(dimension.id) : ALL} onChange={(v) => navigate(link(null, v))}
-        options={[...dimensions.map((t) => ({ value: String(t.id), label: t.name })), { value: ALL, label: "All tags" }]}
-        hint={dimension
-          ? "Each item counts once, under its most specific tag. Tap a block to look inside."
-          : "Each item counts once, under its most specific tag; one tagged in several dimensions counts under the first. Tap a block to look inside."} />
+        options={[...dimensions.map((t) => ({ value: String(t.id), label: t.name })), { value: ALL, label: "All items" }]} />
       {path.length > 1 && <Breadcrumb trail={path.map((b) => ({ key: b.key, label: b.name, to: link(b.key) }))} />}
-      <Treemap blocks={current.children.map((b) => ({
-        key: b.key, kind: b.kind, name: b.name, litres: b.litres, share: formatShare(b.litres, current.litres), to: blockLink(b),
-      }))} />
+      <Treemap blocks={current.children} linkTo={blockLink} />
       <ul className="flex flex-col gap-2" aria-label="Breakdown">
         {current.children.map((b) => (
           <li key={b.key}>

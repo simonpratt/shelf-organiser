@@ -1,8 +1,8 @@
 // Squarified treemap layout (Bruls, Huizing and van Wijk, 2000): splits a
 // rectangle into one rectangle per value, each with an area proportional to
 // its value and as close to square as the algorithm can get, so labels fit
-// and blocks are easy to tap. Hand-rolled: it's 40 lines, and the app only
-// ever lays out one level at a time.
+// and blocks are easy to tap. Hand-rolled: it's 40 lines; nest.ts calls it
+// once per level of the space map.
 
 export type Rect = { x: number; y: number; w: number; h: number };
 

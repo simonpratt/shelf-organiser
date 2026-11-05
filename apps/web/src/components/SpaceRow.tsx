@@ -6,7 +6,7 @@ import { Link } from "react-router";
 import { cx } from "../cx";
 import { formatLitres } from "../items/size";
 import type { BlockKind } from "../space/breakdown";
-import { BoxIcon, ChevronIcon, TagIcon } from "./icons";
+import { BoxIcon, ChevronIcon, TagIcon, UntaggedIcon } from "./icons";
 
 type Props = { to: string; kind: BlockKind; name: string; litres: number; itemCount: number; share: string; fraction: number };
 
@@ -15,7 +15,7 @@ export function SpaceRow({ to, kind, name, litres, itemCount, share, fraction }:
   return (
     <Link to={to} className="flex min-h-touch items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 hover:border-accent"
       aria-label={`${name}, ${formatLitres(litres)}, ${share}${isItem ? "" : `, ${itemCount === 1 ? "1 item" : `${itemCount} items`}`}`}>
-      <span className="text-muted">{isItem ? <BoxIcon /> : <TagIcon />}</span>
+      <span className="text-muted">{isItem ? <BoxIcon /> : kind === "untagged" ? <UntaggedIcon /> : <TagIcon />}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex items-baseline justify-between gap-3">
           <span className={cx("truncate", !isItem && "font-medium")}>{name}</span>

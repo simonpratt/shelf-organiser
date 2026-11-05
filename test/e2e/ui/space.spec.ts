@@ -8,7 +8,7 @@ async function expectRows(rows: Locator, names: string[]) {
   for (const [i, name] of names.entries()) await expect(rows.nth(i)).toHaveAccessibleName(name);
 }
 
-test("maps the space by a dimension, drills into a tag and climbs back out", async ({ page, request }) => {
+test("maps the space by a dimension down to the items, drills into a tag and climbs back out", async ({ page, request }) => {
   // 300 L: tent 100 (Shelf 2, Camping), chairs 2 × 40 (Shed), lamp 20 (Loft), bike 100 (untagged).
   await createItem(request, { name: "Tent", litres: 100, tags: [["Location", "Shed", "Shelf 2"], ["Type", "Camping"]] });
   await createItem(request, { name: "Camping chairs", litres: 40, quantity: 2, tags: [["Location", "Shed"]] });
@@ -23,9 +23,10 @@ test("maps the space by a dimension, drills into a tag and climbs back out", asy
   const rows = page.getByRole("list", { name: "Breakdown" }).getByRole("link");
   await expectRows(rows, ["Shed, 180 L, 60%, 2 items", "Untagged, 100 L, 33%, 1 item", "Loft, 20 L, 7%, 1 item"]);
 
-  // Tap the Shed block on the map itself.
+  // The map shows the items inside each block without drilling in; tap the Shed block itself.
   const map = page.getByTestId("space-map");
   await expect(map.getByTitle("Shed: 180 L, 60%")).toContainText("Shed ›180 L · 60%");
+  await expect(map.getByText("Tent", { exact: true })).toBeVisible();
   await map.getByTitle("Shed: 180 L, 60%").click();
   await expect(page.getByRole("heading", { name: "Shed" })).toBeVisible();
   await expect(page.getByText("180 L in 2 items · 60% of Location")).toBeVisible();
@@ -37,4 +38,8 @@ test("maps the space by a dimension, drills into a tag and climbs back out", asy
 
   await page.getByLabel("Dimension").selectOption({ label: "Type" });
   await expectRows(rows, ["Untagged, 200 L, 67%, 3 items", "Camping, 100 L, 33%, 1 item"]);
+
+  // All items is every item side by side, not grouped.
+  await page.getByLabel("Dimension").selectOption({ label: "All items" });
+  await expectRows(rows, ["Bike, 100 L, 33%", "Tent, 100 L, 33%", "Camping chairs, 80 L, 27%", "Lamp, 20 L, 7%"]);
 });

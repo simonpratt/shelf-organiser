@@ -14,7 +14,7 @@ import { Dialog } from "../components/Dialog";
 import { DraftCard } from "../components/DraftCard";
 import { EmptyState } from "../components/EmptyState";
 import { Fab } from "../components/Fab";
-import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MapIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, TagIcon } from "../components/icons";
+import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MapIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, TagIcon, UntaggedIcon } from "../components/icons";
 import { ItemRow } from "../components/ItemRow";
 import { PageHeader } from "../components/PageHeader";
 import { QuantityStepper } from "../components/QuantityStepper";
@@ -30,6 +30,7 @@ import { TagTreeRow } from "../components/TagTreeRow";
 import { TextField } from "../components/TextField";
 import { Toast } from "../components/Toast";
 import { Treemap } from "../components/Treemap";
+import { breakdown } from "../space/breakdown";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -44,6 +45,23 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Frame({ children }: { children: ReactNode }) {
   return <div className="relative h-32 overflow-hidden rounded-md border border-border [transform:translateZ(0)]">{children}</div>;
 }
+
+// A Location dimension with nested tags, a top-level item and Untagged, for the Treemap.
+const sampleTags = [
+  { id: 1, parentId: null, name: "Location", path: ["Location"] },
+  { id: 2, parentId: 1, name: "Shed", path: ["Location", "Shed"] },
+  { id: 3, parentId: 2, name: "Floor", path: ["Location", "Shed", "Floor"] },
+  { id: 4, parentId: 1, name: "Back room", path: ["Location", "Back room"] },
+];
+const at = (id: number) => ({ id, path: sampleTags.find((t) => t.id === id)!.path });
+const sampleItems = [
+  { id: 1, name: "Lawn mower", litres: 500, quantity: 1, tags: [at(3)] },
+  { id: 2, name: "Camping chairs", litres: 40, quantity: 4, tags: [at(3)] },
+  { id: 3, name: "Tent", litres: 120, quantity: 1, tags: [at(2)] },
+  { id: 4, name: "Exercise bike", litres: 500, quantity: 1, tags: [at(4)] },
+  { id: 5, name: "Photo albums", litres: 10, quantity: 5, tags: [at(4)] },
+  { id: 6, name: "Bike pump", litres: 10, quantity: 1, tags: [] },
+];
 
 export default function ComponentsPage() {
   const [text, setText] = useState("Camping chairs");
@@ -76,7 +94,7 @@ export default function ComponentsPage() {
         <Button block size="lg" icon={<MicIcon />}>Large</Button>
       </Section>
       <Section title="icons">
-        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><ChevronIcon /><MicIcon /><MapIcon /></div>
+        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><UntaggedIcon /><ChevronIcon /><MicIcon /><MapIcon /></div>
       </Section>
       <Section title="Spinner"><Spinner /><Spinner label="Saving…" /></Section>
       <Section title="TextField">
@@ -153,13 +171,7 @@ export default function ComponentsPage() {
         </div>
       </Section>
       <Section title="Treemap">
-        <Treemap blocks={[
-          { key: "tag:1", kind: "tag", name: "Shed", litres: 640, share: "58%", to: "#" },
-          { key: "untagged", kind: "untagged", name: "Untagged", litres: 300, share: "27%", to: "#" },
-          { key: "item:1", kind: "item", name: "Bike", litres: 120, share: "11%", to: "#" },
-          { key: "item:2", kind: "item", name: "Lamp", litres: 40, share: "4%", to: "#" },
-          { key: "item:3", kind: "item", name: "Torch", litres: 2, share: "<1%", to: "#" },
-        ]} />
+        <Treemap blocks={breakdown(sampleItems, sampleTags, 1).children} linkTo={() => "#"} />
       </Section>
       <Section title="SpaceRow">
         <SpaceRow to="#" kind="tag" name="Shed" litres={640} itemCount={12} share="58%" fraction={0.58} />
