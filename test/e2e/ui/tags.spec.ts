@@ -16,11 +16,12 @@ test("renames and moves a tag, then deletes it with its sub-tags while keeping t
   await expect(page.getByText("Saved “Garage”")).toBeVisible();
   expect(await tagPaths(request)).toEqual(["Garage", "Garage/Shelf 2", "Location", "Type", "Type/Camping"]);
 
-  // Delete Garage: the confirmation names the sub-tag it takes with it.
+  // Delete Garage: the confirmation names the sub-tag it takes with it and the items that lose them.
   await page.getByRole("button", { name: /^Garage/ }).click();
   await page.getByRole("dialog", { name: "Edit “Garage”" }).getByRole("button", { name: "Delete" }).click();
   const confirm = page.getByRole("dialog", { name: "Delete “Garage”?" });
   await expect(confirm).toContainText("also deletes the tag inside it");
+  await expect(confirm).toContainText("1 item loses these tags but stays.");
   await confirm.getByRole("button", { name: "Delete tag" }).click();
   await expect(page.getByRole("button", { name: /^Garage/ })).toHaveCount(0);
 

@@ -122,7 +122,10 @@ function TagEditor({ tag, all, onClose }: { tag: Tag; all: Tag[]; onClose: () =>
         {descendants > 0
           ? `This also deletes the ${descendants === 1 ? "tag" : `${descendants} tags`} inside it. `
           : ""}
-        Items keep existing but lose {descendants > 0 ? "these tags" : "this tag"}. This can't be undone.
+        {tag.itemCount === 0
+          ? "No items have " + (descendants > 0 ? "these tags" : "this tag") + "."
+          : `${tag.itemCount === 1 ? "1 item loses" : `${tag.itemCount} items lose`} ${descendants > 0 ? "these tags" : "this tag"} but stays.`}
+        {" "}This can't be undone.
       </ConfirmDialog>
     </>
   );
