@@ -7,7 +7,10 @@ test("adds an item with a new nested tag, edits it, then deletes it and undoes t
 
   // Add, creating Location › Shed › Shelf 2 inline.
   await page.getByRole("link", { name: "Add your first item" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Give the item a name")).toBeVisible();
   await page.getByLabel("Name").fill("Camping chairs");
+  await expect(page.getByText("Give the item a name")).toBeHidden();
   await page.getByRole("radio", { name: /Crate/ }).click();
   await page.getByRole("button", { name: "One more" }).click();
   await page.getByRole("combobox", { name: "Tags" }).fill("Location/Shed/Shelf 2");
@@ -45,6 +48,7 @@ test("adds an item with a new nested tag, edits it, then deletes it and undoes t
   await expect(page.getByText("Deleted “Folding chairs”")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Nothing here yet" })).toBeVisible();
   await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Restored “Folding chairs”")).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: "Folding chairs" })).toContainText("70 L");
   const restored = await listItems(request);
   expect(restored.map((i) => [i.name, i.litres, i.quantity, i.tags.length])).toEqual([["Folding chairs", 35, 2, 2]]);

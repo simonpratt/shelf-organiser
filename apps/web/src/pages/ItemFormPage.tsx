@@ -4,7 +4,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { Item } from "../api/client";
-import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "../api/items";
+import { useCreateItem, useDeleteItem, useItems, useRestoreItem, useUpdateItem } from "../api/items";
 import { useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
 import { AppShell } from "../components/AppShell";
@@ -49,11 +49,16 @@ function Editor({ item }: { item?: Item }) {
   const create = useCreateItem();
   const update = useUpdateItem(item?.id ?? 0);
   const remove = useDeleteItem();
+  const restoreItem = useRestoreItem();
   const [form, setForm] = useState<ItemForm>(() => (item ? fromItem(item) : emptyForm()));
   const [errors, setErrors] = useState<FormErrors>({});
   const nameRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"save" | "another">("save");
-  const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    // A fixed field drops its error straight away rather than on the next save.
+    setErrors((e) => (key in e ? { ...e, [key]: undefined } : e));
+  };
   const save = item ? update : create;
 
   const onSubmit = async (e: FormEvent) => {
@@ -89,7 +94,17 @@ function Editor({ item }: { item?: Item }) {
     const restore = { name: item.name, litres: item.litres, quantity: item.quantity, note: item.note, tags: item.tags.map((t) => t.path) };
     toast({
       message: `Deleted “${item.name}”`,
-      action: { label: "Undo", onClick: () => create.mutate(restore, { onError: (err) => toast({ message: `Couldn't restore: ${err.message}` }) }) },
+      // This editor has unmounted by the time Undo is tapped, so the restore
+      // must not depend on its mutation observer.
+      action: {
+        label: "Undo",
+        onClick: () => {
+          restoreItem(restore).then(
+            () => toast({ message: `Restored “${item.name}”` }),
+            (err: Error) => toast({ message: `Couldn't restore “${item.name}”: ${err.message}` }),
+          );
+        },
+      },
     });
     navigate("/");
   };

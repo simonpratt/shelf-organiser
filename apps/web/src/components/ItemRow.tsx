@@ -14,7 +14,7 @@ export function ItemRow({ to, name, litres, quantity, tags }: Props) {
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-baseline justify-between gap-3">
           <span className="truncate font-medium">{name}</span>
-          <span className="shrink-0 font-mono">{formatLitres(totalLitres({ litres, quantity }))}</span>
+          <span className="shrink-0 tabular-nums">{formatLitres(totalLitres({ litres, quantity }))}</span>
         </div>
         {quantity > 1 && <span className="text-sm text-muted">{quantity} × {formatLitres(litres)}</span>}
         {tags.length > 0 && (

@@ -1,21 +1,35 @@
 // Short-lived status message after an action ("Saved Tent"), with an optional
-// action such as Undo. One at a time; a new toast replaces the last.
+// action such as Undo. One at a time; a new toast replaces the last. It sits
+// above the nav bar or a form's ActionBar, and gets out of the way as soon as
+// the user focuses a field, so it never hides what they are typing into.
 import { createContext, use, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Button } from "./Button";
 
 type ToastSpec = { message: string; action?: { label: string; onClick: () => void } };
 const ToastContext = createContext<(t: ToastSpec) => void>(() => {});
 
-/** How long a toast stays: long enough to reach for Undo. */
+/** How long a toast with an action stays: long enough to reach for Undo. */
 export const TOAST_MS = 8000;
+/** How long a plain status toast stays. */
+export const STATUS_TOAST_MS = 4000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<(ToastSpec & { key: number }) | null>(null);
   const show = useCallback((t: ToastSpec) => setToast({ ...t, key: Date.now() }), []);
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(null), TOAST_MS);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => setToast(null), toast.action ? TOAST_MS : STATUS_TOAST_MS);
+    const onFocus = (e: FocusEvent) => {
+      // Only this toast: a newer one may already have replaced it.
+      if (e.target instanceof HTMLElement && e.target.matches("input, textarea, select")) {
+        setToast((t) => (t?.key === toast.key ? null : t));
+      }
+    };
+    document.addEventListener("focusin", onFocus);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("focusin", onFocus);
+    };
   }, [toast]);
   return (
     <ToastContext value={show}>
