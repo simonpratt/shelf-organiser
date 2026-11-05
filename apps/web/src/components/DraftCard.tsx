@@ -3,7 +3,8 @@
 // draft with an error opens itself so the problem is in view.
 import { useState } from "react";
 import { describeSize } from "../items/drafts";
-import type { FormErrors, ItemForm } from "../items/form";
+import type { ProposedTag } from "../api/client";
+import { addTag, type FormErrors, type ItemForm } from "../items/form";
 import type { TagPath } from "../tags/path";
 import { Button } from "./Button";
 import { CloseIcon } from "./icons";
@@ -11,6 +12,7 @@ import { QuantityStepper } from "./QuantityStepper";
 import { SizePicker } from "./SizePicker";
 import { TagChip } from "./TagChip";
 import { TagInput } from "./TagInput";
+import { TagProposals } from "./TagProposals";
 import { TextField } from "./TextField";
 
 type Props = {
@@ -21,9 +23,11 @@ type Props = {
   existingTags: TagPath[];
   /** Starts open, e.g. to show the full fields in the catalogue. */
   defaultOpen?: boolean;
+  /** Asks Claude for proposed tags (T5); omitted, there is no Suggest tags. */
+  propose?: (form: ItemForm) => Promise<ProposedTag[]>;
 };
 
-export function DraftCard({ form, onChange, onRemove, errors, existingTags, defaultOpen = false }: Props) {
+export function DraftCard({ form, onChange, onRemove, errors, existingTags, defaultOpen = false, propose }: Props) {
   const hasErrors = Object.values(errors).some(Boolean);
   const [open, setOpen] = useState(defaultOpen || hasErrors);
   // Open when a save attempt finds a problem; stay open while it's fixed.
@@ -57,6 +61,10 @@ export function DraftCard({ form, onChange, onRemove, errors, existingTags, defa
           <QuantityStepper value={form.quantity} onChange={set("quantity")} error={errors.quantity} />
           <TagInput value={form.tags} onChange={set("tags")} draft={form.tagDraft} onDraftChange={set("tagDraft")}
             existing={existingTags} />
+          {propose && (
+            <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags}
+              propose={() => propose(form)} onAdd={(p) => set("tags")(addTag(form.tags, p))} />
+          )}
         </>
       )}
     </article>

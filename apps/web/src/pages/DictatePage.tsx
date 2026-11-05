@@ -4,7 +4,7 @@
 // tab until then, so Back or a reload loses nothing.
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import { useClaude, useDraftItems } from "../api/claude";
+import { proposeTags, useClaude, useDraftItems } from "../api/claude";
 import { useCreateItemDetached } from "../api/items";
 import { useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
@@ -135,7 +135,8 @@ function Dictation() {
       ) : (
         drafts.map((d) => (
           <DraftCard key={d.key} form={d.form} errors={d.errors} existingTags={(tags.data ?? []).map((t) => t.path)}
-            onChange={(form) => update(d.key, form)} onRemove={() => remove(d.key)} />
+            onChange={(form) => update(d.key, form)} onRemove={() => remove(d.key)}
+            propose={(form) => proposeTags({ name: form.name, note: form.note, tags: form.tags })} />
         ))
       )}
       {saveError && <Banner>{saveError}</Banner>}

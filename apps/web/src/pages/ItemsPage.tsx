@@ -1,6 +1,8 @@
 // The item list: everything in the shed, largest total space first, with
 // search and a tag filter kept in the URL so Back returns to the same view.
+// T5: with Claude set up, Organise proposes Type tags for untyped items.
 import { useSearchParams } from "react-router";
+import { useClaude } from "../api/claude";
 import { useItems } from "../api/items";
 import { useTags } from "../api/tags";
 import { AppShell } from "../components/AppShell";
@@ -8,7 +10,7 @@ import { Banner } from "../components/Banner";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { Fab } from "../components/Fab";
-import { PlusIcon } from "../components/icons";
+import { PlusIcon, SparkleIcon } from "../components/icons";
 import { ItemRow } from "../components/ItemRow";
 import { PageHeader } from "../components/PageHeader";
 import { SearchField } from "../components/SearchField";
@@ -21,6 +23,7 @@ import { formatPath } from "../tags/path";
 export function ItemsPage() {
   const items = useItems();
   const tags = useTags();
+  const claude = useClaude();
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
   const tagParam = params.get("tag");
@@ -46,7 +49,8 @@ export function ItemsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Items" summary={summary} />
+      <PageHeader title="Items" summary={summary}
+        actions={claude.data?.enabled && all.length > 0 && <Button variant="ghost" to="/organise" icon={<SparkleIcon />}>Organise</Button>} />
       {all.length > 0 && (
         <div className="flex flex-col gap-2">
           <SearchField label="Search items" placeholder="Search names, notes, tags" value={query} onChange={(v) => setParam("q", v)} />

@@ -8,6 +8,7 @@ import { EmptyState } from "./components/EmptyState";
 import { DictatePage } from "./pages/DictatePage";
 import { ItemFormPage } from "./pages/ItemFormPage";
 import { ItemsPage } from "./pages/ItemsPage";
+import { OrganisePage } from "./pages/OrganisePage";
 import { SpacePage } from "./pages/SpacePage";
 import { TagsPage } from "./pages/TagsPage";
 
@@ -15,8 +16,8 @@ import { TagsPage } from "./pages/TagsPage";
 const ComponentsPage = import.meta.env.DEV ? lazy(() => import("./dev/ComponentsPage")) : null;
 
 export function App() {
-  // Fetched once up front, so the Dictate button is already there when the
-  // add form opens rather than pushing the focused Name field down.
+  // Fetched once up front, so the Dictate and Organise buttons are already
+  // there when a screen opens rather than pushing its content down.
   useClaude();
   return (
     <ErrorBoundary>
@@ -25,6 +26,7 @@ export function App() {
         <Route path="/items/new" element={<ItemFormPage />} />
         <Route path="/items/dictate" element={<DictatePage />} />
         <Route path="/items/:id" element={<ItemFormPage />} />
+        <Route path="/organise" element={<OrganisePage />} />
         <Route path="/space" element={<SpacePage />} />
         <Route path="/tags" element={<TagsPage />} />
         {ComponentsPage && (

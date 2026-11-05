@@ -14,9 +14,10 @@ import { Dialog } from "../components/Dialog";
 import { DraftCard } from "../components/DraftCard";
 import { EmptyState } from "../components/EmptyState";
 import { Fab } from "../components/Fab";
-import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MapIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, TagIcon, UntaggedIcon } from "../components/icons";
+import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MapIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, SparkleIcon, TagIcon, UntaggedIcon } from "../components/icons";
 import { ItemRow } from "../components/ItemRow";
 import { PageHeader } from "../components/PageHeader";
+import { ProposalCard } from "../components/ProposalCard";
 import { QuantityStepper } from "../components/QuantityStepper";
 import { SearchField } from "../components/SearchField";
 import { Select } from "../components/Select";
@@ -26,6 +27,7 @@ import { SpaceRow } from "../components/SpaceRow";
 import { Spinner } from "../components/Spinner";
 import { TagChip } from "../components/TagChip";
 import { TagInput } from "../components/TagInput";
+import { TagProposals } from "../components/TagProposals";
 import { TagTreeRow } from "../components/TagTreeRow";
 import { TextField } from "../components/TextField";
 import { Toast } from "../components/Toast";
@@ -74,6 +76,7 @@ export default function ComponentsPage() {
   const [draftForm, setDraftForm] = useState(() =>
     fromDraft({ name: "Camping chairs", quantity: 2, litres: 40, tags: [["Location", "Shed"]] }));
   const existing = [["Location"], ["Location", "Shed"], ["Type"], ["Type", "Camping"]];
+  const [proposalTags, setProposalTags] = useState([["Type", "Garden"]]);
 
   return (
     <AppShell nav={false}>
@@ -94,7 +97,7 @@ export default function ComponentsPage() {
         <Button block size="lg" icon={<MicIcon />}>Large</Button>
       </Section>
       <Section title="icons">
-        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><UntaggedIcon /><ChevronIcon /><MicIcon /><MapIcon /></div>
+        <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><UntaggedIcon /><ChevronIcon /><MicIcon /><MapIcon /><SparkleIcon /></div>
       </Section>
       <Section title="Spinner"><Spinner /><Spinner label="Saving…" /></Section>
       <Section title="TextField">
@@ -121,7 +124,23 @@ export default function ComponentsPage() {
         <QuantityStepper value="0" onChange={() => {}} error="Quantity must be a whole number, 1 or more" />
       </Section>
       <Section title="TagChip">
-        <div className="flex gap-2"><TagChip path={["Type", "Camping"]} /><TagChip path={["Location", "Shed"]} onRemove={() => {}} /></div>
+        <div className="flex flex-wrap gap-2">
+          <TagChip path={["Type", "Camping"]} />
+          <TagChip path={["Location", "Shed"]} onRemove={() => {}} />
+          <TagChip path={["Type", "Garden"]} isNew onRemove={() => {}} />
+          <TagChip path={["Type", "Camping"]} onAdd={() => {}} />
+          <TagChip path={["Type", "Garden", "Lawn care"]} isNew onAdd={() => {}} />
+        </div>
+      </Section>
+      <Section title="TagProposals">
+        <TagProposals ready chosen={tags} onAdd={(p) => setTags([...tags, p])}
+          propose={async () => [{ path: ["Type", "Camping"], isNew: false }, { path: ["Type", "Camping", "Chairs"], isNew: true }]} />
+        <TagProposals ready chosen={[]} onAdd={() => {}} propose={async () => { throw new Error("Claude is busy. Try again in a minute, or pick tags by hand."); }} />
+        <TagProposals ready={false} chosen={[]} onAdd={() => {}} propose={async () => []} />
+      </Section>
+      <Section title="ProposalCard">
+        <ProposalCard name="Lawn mower" tags={proposalTags} onChange={setProposalTags} onRemove={() => {}} existingTags={existing} />
+        <ProposalCard name="Mystery box" tags={[]} onChange={() => {}} onRemove={() => {}} existingTags={existing} />
       </Section>
       <Section title="TagInput">
         <TagInput value={tags} onChange={setTags} draft={draft} onDraftChange={setDraft} existing={existing} />

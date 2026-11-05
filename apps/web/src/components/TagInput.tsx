@@ -5,6 +5,7 @@ import { useId, useState, type KeyboardEvent } from "react";
 import { cx } from "../cx";
 import { addTag } from "../items/form";
 import { formatPath, suggestTags, type Suggestion, type TagPath } from "../tags/path";
+import { isNewPath } from "../tags/proposals";
 import { PlusIcon, TagIcon } from "./icons";
 import { TagChip } from "./TagChip";
 import { inputClasses } from "./TextField";
@@ -14,11 +15,12 @@ type Props = {
   onChange: (tags: TagPath[]) => void;
   draft: string;
   onDraftChange: (text: string) => void;
-  /** Every existing tag path, for suggestions. */
+  /** Every existing tag path, for suggestions and to mark chosen tags New. */
   existing: TagPath[];
+  label?: string;
 };
 
-export function TagInput({ value, onChange, draft, onDraftChange, existing }: Props) {
+export function TagInput({ value, onChange, draft, onDraftChange, existing, label = "Tags" }: Props) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -50,12 +52,12 @@ export function TagInput({ value, onChange, draft, onDraftChange, existing }: Pr
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium">Tags</label>
+      <label htmlFor={id} className="text-sm font-medium">{label}</label>
       {value.length > 0 && (
-        <ul aria-label="Chosen tags" className="flex flex-wrap gap-2 pb-1">
+        <ul aria-label={`Chosen ${label.toLowerCase()}`} className="flex flex-wrap gap-2 pb-1">
           {value.map((p) => (
             <li key={formatPath(p)} className="max-w-full">
-              <TagChip path={p} onRemove={() => onChange(value.filter((t) => t !== p))} />
+              <TagChip path={p} isNew={isNewPath(p, existing)} onRemove={() => onChange(value.filter((t) => t !== p))} />
             </li>
           ))}
         </ul>

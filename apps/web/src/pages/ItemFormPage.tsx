@@ -1,11 +1,11 @@
 // Add or edit one item. Spec: T1 — fast entry on a phone: name, size preset
 // or litres, quantity, tags with inline path creation, note. Deleting offers
 // Undo rather than a confirmation, since it is cheap to reverse. T2: when
-// dictation is set up, adding offers it first.
+// dictation is set up, adding offers it first. T5: Claude can suggest tags.
 import { useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { Item } from "../api/client";
-import { useClaude } from "../api/claude";
+import { proposeTags, useClaude } from "../api/claude";
 import { useCreateItem, useCreateItemDetached, useDeleteItem, useItems, useUpdateItem } from "../api/items";
 import { useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
@@ -19,9 +19,10 @@ import { QuantityStepper } from "../components/QuantityStepper";
 import { SizePicker } from "../components/SizePicker";
 import { Skeleton } from "../components/Skeleton";
 import { TagInput } from "../components/TagInput";
+import { TagProposals } from "../components/TagProposals";
 import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
-import { emptyForm, fromItem, toInput, type FormErrors, type ItemForm } from "../items/form";
+import { addTag, emptyForm, fromItem, toInput, type FormErrors, type ItemForm } from "../items/form";
 
 export function ItemFormPage() {
   const { id } = useParams();
@@ -129,6 +130,11 @@ function Editor({ item }: { item?: Item }) {
       <QuantityStepper value={form.quantity} onChange={set("quantity")} error={errors.quantity} />
       <TagInput value={form.tags} onChange={set("tags")} draft={form.tagDraft} onDraftChange={set("tagDraft")}
         existing={(tags.data ?? []).map((t) => t.path)} />
+      {claude.data?.enabled && (
+        <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags}
+          propose={() => proposeTags({ name: form.name, note: form.note, tags: form.tags })}
+          onAdd={(p) => set("tags")(addTag(form.tags, p))} />
+      )}
       <TextField label="Note (optional)" multiline value={form.note} onChange={set("note")} />
       <div className="flex-1" />
       {save.error && <Banner>Couldn't save: {save.error.message}</Banner>}
