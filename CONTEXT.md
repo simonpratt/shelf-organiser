@@ -45,3 +45,13 @@ _Avoid_: breadcrumb, full name
 **Dimension**:
 A top-level tag, such as Location or Type, that groups one way of looking at the items.
 _Avoid_: root tag, axis, facet
+
+**Untagged**:
+Items with no tag in the dimension being looked at, shown together as one block on the space map.
+_Avoid_: uncategorised, other
+
+## Space map
+
+**Space map**:
+The treemap on the Space screen: one block per tag or item at the current level, its area its total space. An item counts once, under its most specific tag in the dimension.
+_Avoid_: chart, heatmap, graph

@@ -5,17 +5,19 @@ A self-hosted app for cataloguing what's in your shed or back room, so you can s
 - Add items from your phone with a one-tap size preset, or type the litres
 - Dictate a list with your phone keyboard's microphone; Claude turns it into drafts you check before saving (optional, needs an Anthropic API key)
 - Tag items with nested tags such as `Location › Shed › Shelf 2`, creating them as you type
+- See what takes up the space on a treemap by Location, Type or any other top-level tag, and tap in to drill down; the same totals are listed beneath it
 - See every item ranked by the total space it takes
 - Search by name, note or tag, and filter to any tag and everything inside it
 - Rename, move and delete tags without losing items
 
 <table>
   <tr>
+    <td><img src="docs/screenshots/space.png" width="200" alt="Treemap of space by Location: Shed 62%, Back room 34%, and a small Untagged block"></td>
     <td><img src="docs/screenshots/items.png" width="200" alt="Item list ranked by total space, with tag chips on each item"></td>
     <td><img src="docs/screenshots/add.png" width="200" alt="Add item form with size presets, quantity and tag suggestions"></td>
     <td><img src="docs/screenshots/tags.png" width="200" alt="Tag tree with Location and Type dimensions and item counts"></td>
   </tr>
-  <tr><td>Items</td><td>Add item</td><td>Tags</td></tr>
+  <tr><td>Space</td><td>Items</td><td>Add item</td><td>Tags</td></tr>
 </table>
 
 ## Deploy
