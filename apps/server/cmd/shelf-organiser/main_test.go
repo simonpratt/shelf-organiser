@@ -189,6 +189,17 @@ func TestDictationIsOffWithoutAnAPIKey(t *testing.T) {
 	}
 }
 
+func TestDictationSaysWhenTheServersKeyIsRejected(t *testing.T) {
+	claude := httptest.NewServer(claudefake.New("sk-ant-the-real-key"))
+	defer claude.Close()
+	base := startApp(t, map[string]string{"ANTHROPIC_API_KEY": "sk-ant-a-wrong-key", "ANTHROPIC_BASE_URL": claude.URL})
+
+	code, body := do(t, "POST", base+"/api/dictation/drafts", `{"transcript":"a tent"}`)
+	if code != 502 || !strings.Contains(body, "API key was rejected") || strings.Contains(body, "sk-ant") {
+		t.Errorf("drafts with a rejected key = %d %s; want 502 naming the key, without it", code, body)
+	}
+}
+
 func TestDictationDraftsReuseExistingTagsAndSaveNothing(t *testing.T) {
 	fake := claudefake.New("sk-ant-app-test")
 	claude := httptest.NewServer(fake)

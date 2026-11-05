@@ -35,7 +35,7 @@ const systemPrompt = `You turn a dictated list of things stored in a shed or bac
 
 - One item per distinct kind of thing: "two camping chairs" is one item with quantity 2. Apply spoken corrections ("no, three of them").
 - name: short and plain, sentence case, without the quantity ("Camping chairs").
-- litres: your best estimate of the space ONE unit takes up in storage, in litres. A shoebox is about 10, a milk crate 40, a moving box 120, a bike 500.
+- litres: your best estimate of the space ONE unit takes up in storage, in litres. A shoebox is about 10, a milk crate 40, a moving box 120, a bike 500. Use null only when nothing said gives any idea of its size.
 - tags: choose only from the existing tag paths given, written exactly as given, and only when the speaker says or clearly implies them (a place they mention, a kind of thing that obviously fits). Otherwise leave tags empty. Never invent tags.
 - Ignore filler, and anything that isn't a stored thing.`
 
@@ -54,7 +54,7 @@ var draftSchema = map[string]any{
 				"properties": map[string]any{
 					"name":     map[string]any{"type": "string"},
 					"quantity": map[string]any{"type": "integer"},
-					"litres":   map[string]any{"type": "number"},
+					"litres":   map[string]any{"type": []string{"number", "null"}},
 					"tags":     map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 				},
 			},
@@ -66,8 +66,8 @@ type output struct {
 	Items []struct {
 		Name     string   `json:"name"`
 		Quantity int      `json:"quantity"`
-		Litres   float64  `json:"litres"`
-		Tags     []string `json:"tags"` // typed paths, "Location/Shed"
+		Litres   *float64 `json:"litres"` // null when there's no sensible estimate
+		Tags     []string `json:"tags"`   // typed paths, "Location/Shed"
 	} `json:"items"`
 }
 
@@ -124,8 +124,7 @@ func (c *Claude) Extract(ctx context.Context, transcript string, tagPaths [][]st
 	}
 	drafts := make([]Draft, len(out.Items))
 	for i, it := range out.Items {
-		litres := it.Litres
-		drafts[i] = Draft{Name: it.Name, Quantity: it.Quantity, Litres: &litres}
+		drafts[i] = Draft{Name: it.Name, Quantity: it.Quantity, Litres: it.Litres}
 		for _, t := range it.Tags {
 			drafts[i].Tags = append(drafts[i].Tags, strings.Split(t, "/"))
 		}

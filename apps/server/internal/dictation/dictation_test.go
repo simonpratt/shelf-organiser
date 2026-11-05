@@ -2,6 +2,7 @@ package dictation
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"slices"
 	"strings"
@@ -65,6 +66,11 @@ func TestClaudeSendsTheTagPathsAndReadsTheDrafts(t *testing.T) {
 	format := body["output_config"].(map[string]any)["format"].(map[string]any)
 	if format["type"] != "json_schema" {
 		t.Errorf("output_config.format = %v; want a JSON schema", format)
+	}
+	// A draft with no size estimate must be expressible, or Claude invents one.
+	item := format["schema"].(map[string]any)["properties"].(map[string]any)["items"].(map[string]any)["items"].(map[string]any)
+	if got := fmt.Sprint(item["properties"].(map[string]any)["litres"]); got != "map[type:[number null]]" {
+		t.Errorf("litres schema = %s; want number or null", got)
 	}
 	prompt := body["messages"].([]any)[0].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 	if !strings.Contains(prompt, "Location/Shed\nType/Camping\n") {

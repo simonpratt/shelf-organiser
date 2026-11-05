@@ -2,8 +2,12 @@ package api
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/anthropics/anthropic-sdk-go"
 
 	"shelf-organiser/apps/server/internal/dictation"
 )
@@ -38,7 +42,7 @@ func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) 
 	drafts, err := h.extractor.Extract(ctx, transcript, paths)
 	if err != nil {
 		h.logger.Error("reading dictation", "err", err)
-		return DraftItems502JSONResponse{Error: "Claude couldn't read that just now. Try again, or add the items by hand."}, nil
+		return DraftItems502JSONResponse{Error: dictationFailure(err)}, nil
 	}
 
 	out := DraftItems200JSONResponse{Drafts: []Draft{}}
@@ -50,4 +54,19 @@ func (h *handlers) DraftItems(ctx context.Context, req DraftItemsRequestObject) 
 		out.Drafts = append(out.Drafts, Draft{Name: d.Name, Quantity: d.Quantity, Litres: d.Litres, Tags: tags})
 	}
 	return out, nil
+}
+
+// dictationFailure says what the user can do about a failed call to Claude:
+// nothing but fix the server's key, wait, or retry.
+func dictationFailure(err error) string {
+	var apiErr *anthropic.Error
+	if errors.As(err, &apiErr) {
+		switch apiErr.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return "The server's Anthropic API key was rejected. Add the items by hand for now."
+		case http.StatusTooManyRequests:
+			return "Claude is busy. Try again in a minute, or add the items by hand."
+		}
+	}
+	return "Claude couldn't read that just now. Try again, or add the items by hand."
 }
