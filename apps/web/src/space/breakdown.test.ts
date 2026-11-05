@@ -35,10 +35,14 @@ describe("breakdown", () => {
     expect(shape(breakdown(items, tags, 5))).toBe("Type 300 [Camping 180 [Tent 100, Camping chairs 80], Untagged 120 [Bike 100, Lamp 20]]");
   });
 
-  it("counts each item once under All tags, under its deepest tag, so the total is unchanged", () => {
-    // The tent's deepest tag is Shelf 2; the chairs tie on depth and go to Location › Shed before Type › Camping.
-    expect(shape(breakdown(items, tags, null)))
-      .toBe("All tags 300 [Location 200 [Shed 180 [Shelf 2 100 [Tent 100], Camping chairs 80], Loft 20 [Lamp 20]], Untagged 100 [Bike 100]]");
+  it("lists every item ungrouped, largest first, under All items", () => {
+    expect(shape(breakdown(items, tags, null))).toBe("All items 300 [Bike 100, Tent 100, Camping chairs 80, Lamp 20]");
+  });
+
+  it("breaks a tie on depth by tag path", () => {
+    // Shed and Loft are both depth 2; Location › Loft sorts first. Camping is outside Location.
+    const both = [{ id: 1, name: "Stool", litres: 10, quantity: 1, tags: [ref(6), ref(2), ref(4)] }];
+    expect(shape(breakdown(both, tags, 1))).toBe("Location 10 [Loft 10 [Stool 10]]");
   });
 
   it("keeps an item tagged with the dimension itself directly inside it, and drops empty tags", () => {

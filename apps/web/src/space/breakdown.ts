@@ -1,10 +1,10 @@
 // What takes up the space (T3): items grouped into nested blocks following the
 // tag tree, for the treemap and its list view. Domain decisions:
-// - Within the chosen dimension (or the whole tag tree for "All tags"), an
-//   item counts once, under its most specific tag: the deepest one, ties
-//   going to the first by tag path. So the blocks always add up to the
-//   items' total space.
+// - Within the chosen dimension an item counts once, under its most specific
+//   tag: the deepest one, ties going to the first by tag path. So the blocks
+//   always add up to the items' total space.
 // - Items with no tag in the dimension go in one "Untagged" block.
+// - "All items" (no dimension) is every item side by side, ungrouped.
 import { formatPath, subtreeIds, type TagPath } from "../tags/path";
 import { totalLitres } from "../items/size";
 
@@ -30,10 +30,19 @@ export type Block = {
 
 export const UNTAGGED = "untagged";
 
-/** dimensionId null groups by every tag ("All tags"). */
+/** dimensionId null, or one that isn't a dimension, lists every item ungrouped ("All items"). */
 export function breakdown(items: readonly SpaceItem[], tags: readonly SpaceTag[], dimensionId: number | null): Block {
   const dimension = dimensionId === null ? undefined : tags.find((t) => t.id === dimensionId && t.parentId === null);
-  const within = dimension ? subtreeIds(tags, dimension.id) : new Set(tags.map((t) => t.id));
+  const itemBlock = (it: SpaceItem): Block => ({
+    key: `item:${it.id}`, kind: "item", name: it.name, id: it.id, litres: totalLitres(it), itemCount: 1, children: [],
+  });
+  const group = (key: string, kind: BlockKind, name: string, id: number | null, children: Block[]): Block => ({
+    key, kind, name, id, children: sortBySpace(children),
+    litres: children.reduce((s, c) => s + c.litres, 0),
+    itemCount: children.reduce((s, c) => s + c.itemCount, 0),
+  });
+  if (!dimension) return group("root", "root", "All items", null, items.map(itemBlock));
+  const within = subtreeIds(tags, dimension.id);
 
   // Where each item goes: the id of its most specific tag in the dimension, or null.
   const placed = new Map<number | null, SpaceItem[]>();
@@ -48,24 +57,16 @@ export function breakdown(items: readonly SpaceItem[], tags: readonly SpaceTag[]
     if (within.has(t.id)) childTags.set(t.parentId, [...(childTags.get(t.parentId) ?? []), t]);
   }
 
-  const itemBlock = (it: SpaceItem): Block => ({
-    key: `item:${it.id}`, kind: "item", name: it.name, id: it.id, litres: totalLitres(it), itemCount: 1, children: [],
-  });
-  const group = (key: string, kind: BlockKind, name: string, id: number | null, children: Block[]): Block => ({
-    key, kind, name, id, children: sortBySpace(children),
-    litres: children.reduce((s, c) => s + c.litres, 0),
-    itemCount: children.reduce((s, c) => s + c.itemCount, 0),
-  });
-  const contents = (tagId: number | null): Block[] => [
+  const contents = (tagId: number): Block[] => [
     ...(childTags.get(tagId) ?? []).map(tagBlock).filter((b) => b.itemCount > 0),
-    ...(tagId === null ? [] : (placed.get(tagId) ?? []).map(itemBlock)),
+    ...(placed.get(tagId) ?? []).map(itemBlock),
   ];
   const tagBlock = (t: SpaceTag): Block => group(`tag:${t.id}`, "tag", t.name, t.id, contents(t.id));
 
   const untagged = (placed.get(null) ?? []).map(itemBlock);
-  const top = dimension ? contents(dimension.id) : contents(null);
+  const top = contents(dimension.id);
   if (untagged.length > 0) top.push(group(UNTAGGED, "untagged", "Untagged", null, untagged));
-  return group("root", "root", dimension ? dimension.name : "All tags", dimension?.id ?? null, top);
+  return group("root", "root", dimension.name, dimension.id, top);
 }
 
 function mostSpecific<T extends { path: TagPath }>(tags: readonly T[]): T | undefined {
