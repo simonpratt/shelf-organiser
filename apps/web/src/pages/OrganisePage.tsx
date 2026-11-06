@@ -70,7 +70,7 @@ function Organise() {
     return (
       <div className="flex flex-1 flex-col gap-5">
         <PageHeader title="Organise" back={back}
-          summary="Claude reads your items and proposes a type tag, such as Type › Garden, for each one without one, adding to your tags where it needs to. Where things are stays yours to say." />
+          summary="Claude proposes a Type tag, such as Type › Garden, for each item without one, adding to your tags where it needs to. Where things are stays yours to say." />
         {items.isPending ? (
           <Skeleton rows={2} label="Loading items" />
         ) : items.isError ? (
@@ -82,7 +82,9 @@ function Organise() {
         ) : organise.isPending ? (
           <Skeleton rows={4} label={`Claude is reading ${count === 1 ? "1 item" : `${count} items`}`} />
         ) : (
-          <p className="text-muted">You check every proposal before anything changes.</p>
+          <p className="text-muted">
+            Claude reads all {count === 1 ? "1 item" : `${count} items`}, biggest first. You check every proposal before anything changes.
+          </p>
         )}
         {organise.error && <Banner>{organise.error.message}</Banner>}
         <div className="flex-1" />
@@ -132,7 +134,8 @@ function Organise() {
       )}
       {rows.length > 0 && remaining > 0 && (
         <Banner tone="info">
-          {remaining === 1 ? "1 more item has" : `${remaining} more items have`} no {dimension} tag yet. Organise again after applying, or tag them by hand.
+          {remaining === 1 ? "1 more item has" : `${remaining} more items have`} no {dimension} tag yet. Organise again after
+          applying, or tag {remaining === 1 ? "it" : "them"} by hand.
         </Banner>
       )}
       {apply.error && <Banner>Couldn't apply: {apply.error.message}</Banner>}
