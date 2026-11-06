@@ -25,7 +25,8 @@ test("organises untyped items: edits one proposal, leaves one out and applies th
   await expect(page.getByRole("article", { name: "Lawn mower" })).toContainText("Type › GardenNew");
   await expect(page.getByRole("article", { name: "Camping stove" })).toContainText("Type › Camping");
   await expect(page.getByRole("article", { name: "Camping stove" })).not.toContainText("New");
-  await expect(page.getByText("1 more item has no Type tag yet")).toBeVisible();
+  // Claude saw every item, so there is no point organising again.
+  await expect(page.getByText("Claude couldn't place 1 more item. It stays under Untagged on the Space map")).toBeVisible();
 
   await page.getByRole("button", { name: "Leave out Old couch" }).click();
   const drill = page.getByRole("article", { name: "Cordless drill" });

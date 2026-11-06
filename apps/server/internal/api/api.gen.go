@@ -941,6 +941,9 @@ type OrganiseResponseObject interface {
 }
 
 type Organise200JSONResponse struct {
+	// Capped True when the run stopped at its 40 proposals, so organising again may place some of the remaining items; false means Claude couldn't place them
+	Capped bool `json:"capped"`
+
 	// Dimension The top-level tag taken as the Type dimension; may not exist yet
 	Dimension string `json:"dimension"`
 	Proposals []struct {

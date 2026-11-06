@@ -231,7 +231,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [dimension, proposals, remaining]
+                required: [dimension, proposals, remaining, capped]
                 properties:
                   dimension:
                     description: The top-level tag taken as the Type dimension; may not exist yet
@@ -249,6 +249,12 @@ paths:
                   remaining:
                     description: Other items that still have no tag in the dimension
                     type: integer
+                  capped:
+                    description: >
+                      True when the run stopped at its 40 proposals, so organising
+                      again may place some of the remaining items; false means
+                      Claude couldn't place them
+                    type: boolean
         "502":
           description: Claude couldn't be reached or gave no usable answer
           content:

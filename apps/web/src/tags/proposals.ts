@@ -31,3 +31,15 @@ export function toReview(proposals: { itemId: number; tags: Proposed[] }[], item
 export function toAssignments(rows: Reviewed[]): { itemId: number; tags: TagPath[] }[] {
   return rows.filter((r) => r.tags.length > 0).map((r) => ({ itemId: r.itemId, tags: r.tags }));
 }
+
+/**
+ * What the Organise review says about items left without a proposal: only
+ * when the run stopped at its cap can organising again place more.
+ */
+export function remainingNote(remaining: number, capped: boolean, dimension: string): string {
+  const one = remaining === 1;
+  if (capped) {
+    return `${one ? "1 more item has" : `${remaining} more items have`} no ${dimension} tag yet. Organise again after applying for more proposals, or tag ${one ? "it" : "them"} by hand.`;
+  }
+  return `Claude couldn't place ${one ? "1 more item" : `${remaining} more items`}. ${one ? "It stays" : "They stay"} under Untagged on the Space map; tag ${one ? "it" : "them"} by hand.`;
+}

@@ -50,8 +50,11 @@ type Proposals struct {
 	// place, or that already have a tag in Dimension, are left out.
 	Items []ItemProposal
 	// Remaining counts the items asked about that still have no tag in
-	// Dimension and no proposal, e.g. beyond maxItems.
+	// Dimension and no proposal.
 	Remaining int
+	// Capped is true when Items reached MaxItems with items remaining, so
+	// asking again may place some of them; otherwise Claude couldn't.
+	Capped bool
 }
 
 // TagAsk is what ProposeTags asks for.
@@ -233,6 +236,7 @@ func cleanProposals(out proposalOutput, ask TagAsk) Proposals {
 			res.Remaining++
 		}
 	}
+	res.Capped = res.Remaining > 0 && len(res.Items) == ask.MaxItems
 	return res
 }
 

@@ -254,7 +254,7 @@ func TestOrganiseProposesTypeTagsThatApplyInOneGo(t *testing.T) {
 
 	code, body := do(t, "POST", base+"/api/organise", "")
 	// The tent has a Type tag already, and the fake can't place the mystery box.
-	want := `{"dimension":"Type","proposals":[{"itemId":1,"tags":[{"isNew":true,"path":["Type","Garden"]}]}],"remaining":1}`
+	want := `{"capped":false,"dimension":"Type","proposals":[{"itemId":1,"tags":[{"isNew":true,"path":["Type","Garden"]}]}],"remaining":1}`
 	if code != 200 || strings.TrimSpace(body) != want {
 		t.Fatalf("organise = %d %s; want %s", code, body, want)
 	}

@@ -626,6 +626,8 @@ export interface operations {
                         }[];
                         /** @description Other items that still have no tag in the dimension */
                         remaining: number;
+                        /** @description True when the run stopped at its 40 proposals, so organising again may place some of the remaining items; false means Claude couldn't place them */
+                        capped: boolean;
                     };
                 };
             };

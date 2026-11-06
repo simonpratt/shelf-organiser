@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isNewPath, toAssignments, toReview, unchosen } from "./proposals";
+import { isNewPath, remainingNote, toAssignments, toReview, unchosen } from "./proposals";
 
 describe("proposed tags", () => {
   it("counts a path as new only when no tag matches it ignoring case", () => {
@@ -20,5 +20,14 @@ describe("proposed tags", () => {
     );
     expect(rows).toEqual([{ itemId: 1, name: "Lawn mower", tags: [["Type", "Garden"]] }]);
     expect(toAssignments([...rows, { itemId: 2, name: "Tent", tags: [] }])).toEqual([{ itemId: 1, tags: [["Type", "Garden"]] }]);
+  });
+});
+
+describe("remainingNote", () => {
+  it("suggests organising again only when the run hit its cap", () => {
+    expect(remainingNote(12, true, "Type")).toBe(
+      "12 more items have no Type tag yet. Organise again after applying for more proposals, or tag them by hand.");
+    expect(remainingNote(1, false, "Kind")).toBe(
+      "Claude couldn't place 1 more item. It stays under Untagged on the Space map; tag it by hand.");
   });
 });

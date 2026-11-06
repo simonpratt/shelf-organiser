@@ -136,7 +136,7 @@ func (h *handlers) Organise(ctx context.Context, _ OrganiseRequestObject) (Organ
 		h.logger.Error("organising", "err", err)
 		return Organise502JSONResponse{Error: claudeFailure(err, "tag them")}, nil
 	}
-	res.Dimension, res.Remaining = p.Dimension, p.Remaining
+	res.Dimension, res.Remaining, res.Capped = p.Dimension, p.Remaining, p.Capped
 	for _, ip := range p.Items {
 		res.Proposals = append(res.Proposals, struct {
 			ItemId int64         `json:"itemId"`

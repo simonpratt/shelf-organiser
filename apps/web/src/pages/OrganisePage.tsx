@@ -18,7 +18,7 @@ import { ProposalCard } from "../components/ProposalCard";
 import { Skeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { readSession, writeSession } from "../session/store";
-import { toAssignments, toReview, type Reviewed } from "../tags/proposals";
+import { remainingNote, toAssignments, toReview, type Reviewed } from "../tags/proposals";
 
 const back = { to: "/", label: "Back to items" };
 
@@ -43,7 +43,7 @@ export function OrganisePage() {
   );
 }
 
-type Kept = { dimension: string; remaining: number; rows: Reviewed[] } | null;
+type Kept = { dimension: string; remaining: number; capped: boolean; rows: Reviewed[] } | null;
 const KEPT = "organise";
 
 function Organise() {
@@ -60,7 +60,7 @@ function Organise() {
   const onPropose = async () => {
     try {
       const res = await organise.mutateAsync();
-      setKept({ dimension: res.dimension, remaining: res.remaining, rows: toReview(res.proposals, items.data ?? []) });
+      setKept({ dimension: res.dimension, remaining: res.remaining, capped: res.capped, rows: toReview(res.proposals, items.data ?? []) });
     } catch {
       // organise.error is shown in the banner
     }
@@ -98,7 +98,7 @@ function Organise() {
     );
   }
 
-  const { dimension, remaining, rows } = kept;
+  const { dimension, remaining, capped, rows } = kept;
   const assignments = toAssignments(rows);
   const setRows = (next: Reviewed[]) => setKept({ ...kept, rows: next });
 
@@ -134,8 +134,7 @@ function Organise() {
       )}
       {rows.length > 0 && remaining > 0 && (
         <Banner tone="info">
-          {remaining === 1 ? "1 more item has" : `${remaining} more items have`} no {dimension} tag yet. Organise again after
-          applying, or tag {remaining === 1 ? "it" : "them"} by hand.
+          {remainingNote(remaining, capped, dimension)}
         </Banner>
       )}
       {apply.error && <Banner>Couldn't apply: {apply.error.message}</Banner>}

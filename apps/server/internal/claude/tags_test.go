@@ -49,8 +49,22 @@ func TestCleanProposalsKeepsOnlyApplicableTagsInTheTypeDimension(t *testing.T) {
 	}) {
 		t.Errorf("items = %+v\nwant  %+v", got.Items, want)
 	}
-	if got.Remaining != 1 {
-		t.Errorf("remaining = %d; want 1 (the mystery box)", got.Remaining)
+	if got.Remaining != 1 || got.Capped {
+		t.Errorf("remaining = %d, capped = %v; want 1 (the mystery box), not capped", got.Remaining, got.Capped)
+	}
+}
+
+func TestCleanProposalsSaysCappedOnlyWhenItStoppedAtMaxItems(t *testing.T) {
+	out := proposalOutput{Dimension: "Type", Items: []struct {
+		Ref  int64    `json:"ref"`
+		Tags []string `json:"tags"`
+	}{{Ref: 1, Tags: []string{"Type/Camping"}}}}
+	items := []ItemToTag{{Ref: 1, Name: "Tent"}, {Ref: 2, Name: "Box"}}
+	if got := cleanProposals(out, TagAsk{Items: items, PerItem: 1, MaxItems: 1}); !got.Capped || got.Remaining != 1 {
+		t.Errorf("at the cap: %+v; want capped with 1 remaining", got)
+	}
+	if got := cleanProposals(out, TagAsk{Items: items, PerItem: 1, MaxItems: 2}); got.Capped || got.Remaining != 1 {
+		t.Errorf("under the cap: %+v; want 1 remaining, not capped", got)
 	}
 }
 
