@@ -3,11 +3,13 @@
 // Nothing is saved until "Save all". The dictation and drafts are kept for the
 // tab until then, so Back or a reload loses nothing. Tags for the whole
 // dictation (where it all is) start from the Add form's and go on every draft.
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { proposeTags, useClaude, useDraftItems } from "../api/claude";
 import { useCreateItemDetached } from "../api/items";
-import { useTags } from "../api/tags";
+import type { Tag } from "../api/client";
+import { tagKeys, useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
 import { AppShell } from "../components/AppShell";
 import { Banner } from "../components/Banner";
@@ -22,10 +24,10 @@ import { useToast } from "../components/Toast";
 import { fromDraft, saveInOrder, toInputs } from "../items/drafts";
 import type { FormErrors, ItemForm } from "../items/form";
 import { readSession, writeSession } from "../session/store";
-import { addTag, typeDimension } from "../items/form";
+import { addTag, carriedTags, locationDimension, typeDimension } from "../items/form";
 import { parseTagPath, type TagPath } from "../tags/path";
 
-/** What the Add form passes on: its tags in the Location dimension. */
+/** What the Add form passes on, and gets back after Save all: tags in the Location dimension. */
 export type DictateState = { tags: TagPath[] };
 
 const back = { to: "/items/new", label: "Back to adding an item" };
@@ -61,6 +63,7 @@ function Dictation() {
   const tags = useTags();
   const draftItems = useDraftItems();
   const createItem = useCreateItemDetached();
+  const qc = useQueryClient();
   const passed = (useLocation().state as DictateState | null)?.tags ?? [];
   const [kept] = useState(() => readSession<Kept>(KEPT, { transcript: "", drafts: null }));
   const started = kept.transcript !== "" || kept.drafts !== null;
@@ -96,7 +99,8 @@ function Dictation() {
 
   const onSaveAll = async () => {
     if (!drafts) return;
-    const { inputs, errors } = toInputs(drafts.map((d) => d.form), addTag(shared, parseTagPath(sharedDraft)));
+    const sharedTags = addTag(shared, parseTagPath(sharedDraft));
+    const { inputs, errors } = toInputs(drafts.map((d) => d.form), sharedTags);
     setDrafts(drafts.map((d, i) => ({ ...d, errors: errors[i] ?? {} })));
     if (!inputs) return;
     setSaving(true);
@@ -111,9 +115,12 @@ function Dictation() {
     }
     // Navigating away unmounts this screen, so nothing writes the drafts back.
     writeSession(KEPT, null);
-    toast({ message: saved === 1 ? "Saved 1 item" : `Saved ${saved} items` });
-    // In place of the dictation, so Back goes to the Add form, not an empty dictation.
-    navigate("/", { replace: true });
+    toast({ message: `${saved === 1 ? "Saved 1 item" : `Saved ${saved} items`}. Add the next one.` });
+    // On to the next item from the same place, as Save and add another does,
+    // in place of the dictation so Back doesn't reopen an empty one. The save
+    // has refreshed the tags, which may have just started a Location dimension.
+    const tags = carriedTags(sharedTags, locationDimension(qc.getQueryData<Tag[]>(tagKeys.all)));
+    navigate("/items/new", { replace: true, state: { tags } satisfies DictateState });
   };
 
   if (drafts === null) {

@@ -35,8 +35,8 @@ test("dictates a list, corrects the drafts and saves them all", async ({ page, r
   await expect(page.getByRole("article", { name: "Drill" })).toContainText("Shoebox (10 L)");
 
   await page.getByRole("button", { name: "Save all 2 items" }).click();
-  await expect(page.getByText("Saved 2 items")).toBeVisible();
-  await expect(page.getByRole("list", { name: "Items" }).getByRole("listitem")).toHaveCount(2);
+  await expect(page.getByText("Saved 2 items. Add the next one.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Add item" })).toBeVisible();
 
   const saved = (await listItems(request)).map((i) => [i.name, i.litres, i.quantity, i.tags.map((t) => t.path.join("/"))]);
   expect(saved).toEqual([
@@ -63,7 +63,9 @@ test("starts a dictation with the Add form's location and puts it on every draft
   await expect(page.getByRole("heading", { name: "Check the drafts" })).toBeVisible();
   await expect(shared).toHaveText("Location › Shed › Shelf 3");
   await page.getByRole("button", { name: "Save all 2 items" }).click();
-  await expect(page.getByText("Saved 2 items")).toBeVisible();
+  // Back on the Add form, still on the same shelf, as after Save and add another.
+  await expect(page.getByRole("heading", { name: "Add item" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Chosen tags" })).toHaveText("Location › Shed › Shelf 3");
 
   const saved = Object.fromEntries((await listItems(request)).map((i) => [i.name, i.tags.map((t) => t.path.join("/"))]));
   expect(saved).toEqual({

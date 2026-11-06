@@ -1,10 +1,10 @@
 // Add or edit one item. Spec: T1 — fast entry on a phone: name, size preset
 // or litres, quantity, tags with inline path creation, note. Deleting offers
 // Undo rather than a confirmation, since it is cheap to reverse. T2: when
-// dictation is set up, adding offers it first. T5: Claude can suggest tags.
+// dictation is set up, adding offers it first, and comes back here after. T5: Claude can suggest tags.
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type FormEvent } from "react";
-import { useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { useGoBack } from "../back";
 import type { Item, Tag } from "../api/client";
 import { proposeTags, useClaude } from "../api/claude";
@@ -58,7 +58,9 @@ function Editor({ item }: { item?: Item }) {
   const update = useUpdateItem(item?.id ?? 0);
   const remove = useDeleteItem();
   const createDetached = useCreateItemDetached();
-  const [form, setForm] = useState<ItemForm>(() => (item ? fromItem(item) : emptyForm()));
+  // After a dictation is saved, the Add form opens with its location carried.
+  const carried = (useLocation().state as DictateState | null)?.tags;
+  const [form, setForm] = useState<ItemForm>(() => (item ? fromItem(item) : emptyForm(carried)));
   const [errors, setErrors] = useState<FormErrors>({});
   const nameRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"save" | "another">("save");
