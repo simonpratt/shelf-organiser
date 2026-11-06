@@ -4,6 +4,7 @@
 // Renaming or moving a tag onto one that already exists offers to merge them.
 import { useState, type FormEvent } from "react";
 import type { Tag } from "../api/client";
+import { useLogout, useSession } from "../api/session";
 import { useDeleteTag, useEnsureTag, useTags, useUpdateTag } from "../api/tags";
 import { AppShell } from "../components/AppShell";
 import { Banner } from "../components/Banner";
@@ -23,6 +24,8 @@ import { formatPath, parseTagPath, subtreeIds } from "../tags/path";
 
 export function TagsPage() {
   const tags = useTags();
+  const session = useSession();
+  const logout = useLogout();
   const ensure = useEnsureTag();
   const toast = useToast();
   const [draft, setDraft] = useState("");
@@ -43,12 +46,18 @@ export function TagsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Tags" summary="Top-level tags, like Location or Type, are the ways Space can group things. Nest the rest inside them." />
+      <PageHeader title="Tags" summary="Top-level tags, like Location or Type, are the ways Space can group things. Nest the rest inside them."
+        actions={session.data?.loginRequired && (
+          <Button variant="ghost" busy={logout.isPending} onClick={() => logout.mutate()}>
+            Log out
+          </Button>
+        )} />
       <form onSubmit={onAdd}>
         <TextField label="New tag" value={draft} onChange={setDraft} placeholder="e.g. Location/Shed/Shelf 2"
           autoCapitalize="words" hint="Use / to nest. Missing parents are created."
           action={<Button type="submit" variant="primary" icon={<PlusIcon />} busy={ensure.isPending} disabled={!draft.trim()}>Add</Button>} />
       </form>
+      {logout.error && <Banner>Couldn't log out: {logout.error.message}</Banner>}
       {ensure.error && <Banner>Couldn't add the tag: {ensure.error.message}</Banner>}
       {tags.isPending ? (
         <Skeleton label="Loading tags" />

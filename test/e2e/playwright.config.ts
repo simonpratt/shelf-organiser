@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { baseURL, binary, dataDir, port, target } from "./fixtures/env";
+import { baseURL, binary, dataDir, login, loginDataDir, loginPort, port, target } from "./fixtures/env";
 
 // Fail fast when the binary is older than the source it embeds, so a
 // forgotten `make build` can't pass against stale code. `make e2e` builds first.
@@ -50,18 +50,34 @@ export default defineConfig({
   ],
   webServer: target
     ? undefined
-    : {
-        command: `rm -rf '${dataDir}' && '${binary}'`,
-        url: `http://127.0.0.1:${port}/healthz`,
-        env: {
-          APP_TEST_MODE: "1",
-          DATA_DIR: dataDir,
-          PORT: String(port),
-          // Dictation talks to the server's own test-mode fake of the Anthropic API.
-          ANTHROPIC_API_KEY: "test-anthropic-key",
-          ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}/api/test/anthropic/`,
+    : [
+        {
+          command: `rm -rf '${dataDir}' && '${binary}'`,
+          url: `http://127.0.0.1:${port}/healthz`,
+          env: {
+            APP_TEST_MODE: "1",
+            DATA_DIR: dataDir,
+            PORT: String(port),
+            // Dictation talks to the server's own test-mode fake of the Anthropic API.
+            ANTHROPIC_API_KEY: "test-anthropic-key",
+            ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}/api/test/anthropic/`,
+          },
+          reuseExistingServer: false,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
         },
-        reuseExistingServer: false,
-        gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
-      },
+        // The same binary with a login set up, for ui/login.spec.ts; every other spec uses the one above, with none.
+        {
+          command: `rm -rf '${loginDataDir}' && '${binary}'`,
+          url: `http://127.0.0.1:${loginPort}/healthz`,
+          env: {
+            APP_TEST_MODE: "1",
+            DATA_DIR: loginDataDir,
+            PORT: String(loginPort),
+            APP_USERNAME: login.username,
+            APP_PASSWORD: login.password,
+          },
+          reuseExistingServer: false,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
+        },
+      ],
 });

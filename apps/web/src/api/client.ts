@@ -26,6 +26,20 @@ export async function friendlyFetch(input: Request): Promise<Response> {
 
 export const api = createClient<paths>({ baseUrl: "/", fetch: friendlyFetch });
 
+let onUnauthorized: () => void = () => {};
+
+/** Sets what happens when the server says the login is missing or expired (App opens the login page). */
+export function setUnauthorizedHandler(fn: () => void) {
+  onUnauthorized = fn;
+}
+
+// A 401 from anything but the login itself means the session has gone.
+api.use({
+  onResponse({ request, response }) {
+    if (response.status === 401 && !new URL(request.url).pathname.startsWith("/api/login")) onUnauthorized();
+  },
+});
+
 export function unwrap<T>(res: { data?: T; error?: { error: string } | unknown; response: Response }): T {
   if (res.error !== undefined || !res.response.ok) {
     const msg = (res.error as { error?: string } | undefined)?.error;
