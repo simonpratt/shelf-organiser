@@ -12,6 +12,8 @@ import { TagInput } from "./TagInput";
 
 type Props = {
   name: string;
+  /** The item's size and where it is, e.g. "Crate (40 L) · Location › Shed". */
+  detail?: string;
   /** The tags Apply will add; the item keeps the tags it has. */
   tags: TagPath[];
   onChange: (tags: TagPath[]) => void;
@@ -19,7 +21,7 @@ type Props = {
   existingTags: TagPath[];
 };
 
-export function ProposalCard({ name, tags, onChange, onRemove, existingTags }: Props) {
+export function ProposalCard({ name, detail, tags, onChange, onRemove, existingTags }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const done = () => {
@@ -31,19 +33,22 @@ export function ProposalCard({ name, tags, onChange, onRemove, existingTags }: P
 
   return (
     <article aria-label={name} className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4">
-      <div className="flex items-center gap-2">
-        <h2 className="min-w-0 flex-1 truncate font-medium">{name}</h2>
+      <div className="flex items-start gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h2 className="truncate font-medium">{name}</h2>
+          {detail && <p className="text-sm text-muted">{detail}</p>}
+        </div>
         <Button variant="ghost" aria-expanded={open} onClick={open ? done : () => setOpen(true)}>
           {open ? "Done" : "Edit"}
         </Button>
         <Button variant="ghost" icon={<CloseIcon />} aria-label={`Leave out ${name}`} onClick={onRemove} />
       </div>
       {!open && (tags.length > 0 ? (
-        <span className="-mt-2 flex flex-wrap gap-1">
+        <span className="flex flex-wrap gap-1">
           {tags.map((t) => <TagChip key={t.join("/")} path={t} isNew={isNewPath(t, existingTags)} />)}
         </span>
       ) : (
-        <p className="-mt-2 text-sm text-muted">No tags to add; it will be left as it is.</p>
+        <p className="text-sm text-muted">No tags to add; it will be left as it is.</p>
       ))}
       {open && (
         <TagInput label="Tags to add" value={tags} onChange={onChange} draft={draft} onDraftChange={setDraft} existing={existingTags} />

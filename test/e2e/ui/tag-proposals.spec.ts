@@ -23,6 +23,8 @@ test("organises untyped items: edits one proposal, leaves one out and applies th
   await expect(page.getByRole("heading", { name: "Check the proposals" })).toBeVisible();
 
   await expect(page.getByRole("article", { name: "Lawn mower" })).toContainText("Type › GardenNew");
+  // Size and place, to tell apart items of the same name.
+  await expect(page.getByRole("article", { name: "Lawn mower" })).toContainText("300 L · Location › Shed");
   await expect(page.getByRole("article", { name: "Camping stove" })).toContainText("Type › Camping");
   await expect(page.getByRole("article", { name: "Camping stove" })).not.toContainText("New");
   // Claude saw every item, so there is no point organising again.

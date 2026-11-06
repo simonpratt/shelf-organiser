@@ -18,6 +18,8 @@ import { ProposalCard } from "../components/ProposalCard";
 import { Skeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { readSession, writeSession } from "../session/store";
+import { describeItem } from "../items/drafts";
+import { locationDimension } from "../items/form";
 import { remainingNote, toAssignments, toReview, type Reviewed } from "../tags/proposals";
 
 const back = { to: "/", label: "Back to items" };
@@ -125,11 +127,15 @@ function Organise() {
             : `Every item already has a ${dimension} tag.`}
         </EmptyState>
       ) : (
-        rows.map((r, i) => (
-          <ProposalCard key={r.itemId} name={r.name} tags={r.tags} existingTags={(tags.data ?? []).map((t) => t.path)}
-            onChange={(t) => setRows(rows.map((x, j) => (j === i ? { ...x, tags: t } : x)))}
-            onRemove={() => setRows(rows.filter((_, j) => j !== i))} />
-        ))
+        rows.map((r, i) => {
+          const item = items.data?.find((it) => it.id === r.itemId);
+          return (
+            <ProposalCard key={r.itemId} name={r.name} tags={r.tags} existingTags={(tags.data ?? []).map((t) => t.path)}
+              detail={item && describeItem(item, locationDimension(tags.data))}
+              onChange={(t) => setRows(rows.map((x, j) => (j === i ? { ...x, tags: t } : x)))}
+              onRemove={() => setRows(rows.filter((_, j) => j !== i))} />
+          );
+        })
       )}
       {rows.length > 0 && remaining > 0 && (
         <Banner tone="info">

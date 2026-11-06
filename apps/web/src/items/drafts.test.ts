@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeSize, fromDraft, saveInOrder, toInputs, withShared } from "./drafts";
+import { describeItem, describeSize, fromDraft, saveInOrder, toInputs, withShared } from "./drafts";
 
 const chairs = { name: "Camping chairs", quantity: 2, litres: 40, tags: [["Type", "Camping"]] };
 
@@ -63,4 +63,10 @@ describe("saveInOrder", () => {
     expect(res.error?.message).toBe("offline");
     expect(tried).toEqual(["A", "B"]);
   });
+});
+
+it("describes a saved item by its size and where it is", () => {
+  const tags = [{ path: ["Type", "Camping"] }, { path: ["Location", "Shed", "Shelf 1"] }];
+  expect(describeItem({ litres: 40, quantity: 2, tags }, "Location")).toBe("2 × Crate (40 L) · Location › Shed › Shelf 1");
+  expect(describeItem({ litres: 35, quantity: 1, tags }, null)).toBe("35 L");
 });

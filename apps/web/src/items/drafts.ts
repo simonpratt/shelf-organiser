@@ -1,8 +1,8 @@
 // Drafts read from a dictation: turning them into editable forms, checking
 // them all before anything is saved, and saving them one by one.
 import type { Draft } from "../api/client";
-import { samePath, type TagPath } from "../tags/path";
-import { addTag, emptyForm, toInput, type FormErrors, type ItemForm, type ItemInput } from "./form";
+import { formatPath, samePath, type TagPath } from "../tags/path";
+import { addTag, emptyForm, hasTagIn, toInput, type FormErrors, type ItemForm, type ItemInput } from "./form";
 import { formatLitres, presetFor } from "./size";
 
 export function fromDraft(d: Draft): ItemForm {
@@ -16,6 +16,16 @@ export function describeSize(form: ItemForm): string {
   const preset = presetFor(litres);
   const size = preset ? `${preset.label} (${formatLitres(litres)})` : formatLitres(litres);
   return form.quantity === "1" ? size : `${form.quantity} × ${size}`;
+}
+
+/**
+ * "2 × Crate (40 L) · Location › Shed › Shelf 1": a saved item's size and
+ * where it is, to tell apart items of the same name on a review.
+ */
+export function describeItem(item: { litres: number; quantity: number; tags: { path: TagPath }[] }, location: string | null): string {
+  const size = describeSize({ ...emptyForm(), litres: String(item.litres), quantity: String(item.quantity) });
+  const where = item.tags.map((t) => t.path).filter((p) => hasTagIn([p], location));
+  return [size, ...where.map(formatPath)].join(" · ");
 }
 
 /**

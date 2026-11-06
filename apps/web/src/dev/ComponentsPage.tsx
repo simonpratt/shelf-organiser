@@ -140,7 +140,7 @@ export default function ComponentsPage() {
         <TagProposals ready={false} chosen={[]} onAdd={() => {}} typeDimension={null} propose={async () => ({ dimension: "Type", tags: [] })} />
       </Section>
       <Section title="ProposalCard">
-        <ProposalCard name="Lawn mower" tags={proposalTags} onChange={setProposalTags} onRemove={() => {}} existingTags={existing} />
+        <ProposalCard name="Lawn mower" detail="Bulky (500 L) · Location › Shed" tags={proposalTags} onChange={setProposalTags} onRemove={() => {}} existingTags={existing} />
         <ProposalCard name="Mystery box" tags={[]} onChange={() => {}} onRemove={() => {}} existingTags={existing} />
       </Section>
       <Section title="TagInput">
