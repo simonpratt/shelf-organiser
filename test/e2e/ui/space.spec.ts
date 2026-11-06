@@ -19,7 +19,7 @@ test("maps the space by a dimension down to the items, drills into a tag and cli
   await expect(page.getByText("300 L in 4 items")).toBeVisible();
 
   // It opens on the first dimension.
-  await expect(page.getByLabel("Dimension").locator("option:checked")).toHaveText("Location");
+  await expect(page.getByLabel("Group by").locator("option:checked")).toHaveText("Location");
   const rows = page.getByRole("list", { name: "Breakdown" }).getByRole("link");
   await expectRows(rows, ["Shed, 180 L, 60%, 2 items", "Untagged, 100 L, 33%, 1 item", "Loft, 20 L, 7%, 1 item"]);
 
@@ -36,10 +36,10 @@ test("maps the space by a dimension down to the items, drills into a tag and cli
   await expect(page.getByRole("heading", { name: "Space" })).toBeVisible();
   await expect(rows.first()).toHaveAccessibleName("Shed, 180 L, 60%, 2 items");
 
-  await page.getByLabel("Dimension").selectOption({ label: "Type" });
+  await page.getByLabel("Group by").selectOption({ label: "Type" });
   await expectRows(rows, ["Untagged, 200 L, 67%, 3 items", "Camping, 100 L, 33%, 1 item"]);
 
   // All items is every item side by side, not grouped.
-  await page.getByLabel("Dimension").selectOption({ label: "All items" });
+  await page.getByLabel("Group by").selectOption({ label: "Nothing (all items)" });
   await expectRows(rows, ["Bike, 100 L, 33%", "Tent, 100 L, 33%", "Camping chairs, 80 L, 27%", "Lamp, 20 L, 7%"]);
 });

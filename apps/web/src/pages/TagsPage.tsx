@@ -43,7 +43,7 @@ export function TagsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Tags" summary="Top-level tags are dimensions, like Location or Type. Nest the rest inside them." />
+      <PageHeader title="Tags" summary="Top-level tags, like Location or Type, are the ways Space can group things. Nest the rest inside them." />
       <form onSubmit={onAdd}>
         <TextField label="New tag" value={draft} onChange={setDraft} placeholder="e.g. Location/Shed/Shelf 2"
           autoCapitalize="words" hint="Use / to nest. Missing parents are created."

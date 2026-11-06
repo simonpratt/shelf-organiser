@@ -43,8 +43,8 @@ A tag's names from its top-level tag down, shown as "Location › Shed › Shelf
 _Avoid_: breadcrumb, full name
 
 **Dimension**:
-A top-level tag, such as Location or Type, that groups one way of looking at the items.
-_Avoid_: root tag, axis, facet
+A top-level tag, such as Location or Type, that groups one way of looking at the items. In UI copy, what the Space screen groups by.
+_Avoid_: root tag, axis, facet; "dimension" in UI copy
 
 **Type dimension**:
 The dimension that says what kind of thing an item is: the one Claude first took as it, else the one named Type, Kind or Category. Once known it is the same on every screen. It is the only one Claude proposes tags in; where things are is for the user to say.

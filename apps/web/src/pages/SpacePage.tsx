@@ -74,8 +74,8 @@ export function SpacePage() {
   return (
     <AppShell>
       <PageHeader title={path.length > 1 ? current.name : "Space"} summary={summary} />
-      <Select label="Dimension" value={dimension ? String(dimension.id) : ALL} onChange={(v) => navigate(link(null, v))}
-        options={[...dimensions.map((t) => ({ value: String(t.id), label: t.name })), { value: ALL, label: "All items" }]} />
+      <Select label="Group by" value={dimension ? String(dimension.id) : ALL} onChange={(v) => navigate(link(null, v))}
+        options={[...dimensions.map((t) => ({ value: String(t.id), label: t.name })), { value: ALL, label: "Nothing (all items)" }]} />
       {path.length > 1 && <Breadcrumb trail={path.map((b) => ({ key: b.key, label: b.name, to: link(b.key) }))} />}
       <Treemap blocks={current.children} linkTo={blockLink} />
       <ul className="flex flex-col gap-2" aria-label="Breakdown">
