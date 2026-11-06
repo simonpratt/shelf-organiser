@@ -4,7 +4,7 @@ A self-hosted app for cataloguing what's in your shed or back room, so you can s
 
 - Add items from your phone with a one-tap size preset, or type the litres
 - Dictate a list with your phone keyboard's microphone; Claude turns it into drafts you check before saving (optional, needs an Anthropic API key)
-- Tag items with nested tags such as `Location › Shed › Shelf 2`, creating them as you type; rename, move or delete tags without losing items
+- Tag items with nested tags such as `Location › Shed › Shelf 2`, creating them as you type; rename, move, merge or delete tags without losing items
 - Let Claude propose Type tags, one item at a time or for everything untagged at once, building the tag tree for you; nothing changes until you accept (optional, same key)
 - See the biggest things at a glance on a treemap by Location, Type or any other top-level tag, and tap in to drill down
 - Search and rank items by the total space they take, filtered to any tag
@@ -36,7 +36,7 @@ Test-only settings are in `.env.example`.
 ## Notes
 
 - There is no login: run it on a trusted LAN only.
-- Deleting a tag also deletes the tags inside it; the items stay.
+- Deleting a tag also deletes the tags inside it; the items stay, moving up to its parent tag. Renaming or moving a tag onto an existing one offers to merge them.
 - Dictation sends only the text of what you said, plus your tag paths, to Anthropic; the app never handles audio (`docs/adr/0001-dictation-via-keyboard-and-claude.md`).
 - Suggest tags and Organise send item names, notes and tag paths to Anthropic (`docs/adr/0002-claude-proposes-type-tags-on-request.md`).
 
