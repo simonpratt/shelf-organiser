@@ -10,7 +10,7 @@ Proposals may name tags that don't exist yet, shown as **New**. They are only ev
 ## Considered options
 
 - **Learning the Type dimension in the browser from each Suggest answer** (how this started): a fresh tab didn't know it, so Save and add another carried the last item's Type tag, and Claude could pick a different dimension on another call. Remembering it on the server fixes both.
-- **A setting for the user to pick the Type dimension**: one more control to explain, when the name fallback and Claude's first pick get it right on the trees seen so far. Not built; renaming or merging tags is the way out of a wrong pick.
+- **A setting for the user to pick the Type dimension**: one more control to explain, when the name fallback and Claude's first pick get it right on the trees seen so far. Not built, so a wrong pick sticks until that tag is moved under another.
 
 - **Suggestions as the name is typed (debounced)**: a call on most items, chips that move around while typing, and a cost that grows with every keystroke. One tap is cheap enough and leaves the user in charge.
 - **Let dictation drafts arrive with new tags**: the Opus dictation prompt would also have to design the taxonomy, and the review screen would carry new tags on every draft. Drafts keep their existing-tags-only rule. After saving a dictation, Suggest per draft or Organise afterwards covers it.
