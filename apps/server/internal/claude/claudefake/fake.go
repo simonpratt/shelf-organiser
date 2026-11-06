@@ -4,8 +4,10 @@
 //
 // It answers a dictation the way a careful model would on simple input:
 // the transcript is split on commas, "and" and new lines; each piece becomes
-// one item with a leading number as its quantity and a size of 40 L; and an
-// existing tag is suggested when its last name appears in the piece.
+// one item with a leading number as its quantity; its size is a rough guess
+// from a keyword in it (socket set 5 L, toolbox 20, crate 40, timber 200,
+// bike or mower 500; see sizes), else 40 L; and an existing tag is suggested
+// when its last name appears in the piece.
 //
 // It answers a request for tag proposals (one with an <items> section) in
 // the dimension the request names, else the existing top-level tag named
@@ -64,6 +66,27 @@ var (
 	leading  = regexp.MustCompile(`^(\d+|a|an|one|two|three|four|five|six)\s+`)
 	words    = map[string]int{"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 )
+
+// sizes are the fake's rough size guesses for a dictated item, in litres,
+// checked in order against its lower-cased name.
+var sizes = []struct {
+	keyword string
+	litres  float64
+}{
+	{"socket set", 5}, {"toolbox", 20}, {"tool box", 20}, {"crate", 40},
+	{"timber", 200}, {"bike", 500}, {"bicycle", 500}, {"mower", 500},
+}
+
+// guessLitres is the size of the first keyword in name, else 40 L.
+func guessLitres(name string) float64 {
+	name = strings.ToLower(name)
+	for _, s := range sizes {
+		if strings.Contains(name, s.keyword) {
+			return s.litres
+		}
+	}
+	return 40
+}
 
 func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/v1/messages") {
@@ -135,6 +158,7 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		it.Name = strings.ToUpper(piece[:1]) + piece[1:]
+		it.Litres = guessLitres(piece)
 		items = append(items, it)
 	}
 	writeAnswer(w, body, map[string]any{"items": items})

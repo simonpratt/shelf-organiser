@@ -43,16 +43,20 @@ func TestClaudeSendsTheTagPathsAndReadsTheDrafts(t *testing.T) {
 	defer srv.Close()
 
 	c := New("test-key", srv.URL)
-	drafts, err := c.Extract(context.Background(), "two camping chairs and a drill from the shed",
+	drafts, err := c.Extract(context.Background(), "two camping chairs, a drill from the shed and a bike",
 		[][]string{{"Location", "Shed"}, {"Type", "Camping"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(drafts) != 2 || drafts[0].Name != "Camping chairs" || drafts[0].Quantity != 2 || *drafts[0].Litres != 40 {
+	if len(drafts) != 3 || drafts[0].Name != "Camping chairs" || drafts[0].Quantity != 2 || *drafts[0].Litres != 40 {
 		t.Fatalf("drafts = %+v", drafts)
 	}
 	if !slices.EqualFunc(drafts[1].Tags, [][]string{{"Location", "Shed"}}, slices.Equal) {
 		t.Errorf("drill tags = %v; want Location/Shed", drafts[1].Tags)
+	}
+	// The fake guesses rough sizes from keywords, as Claude would.
+	if *drafts[2].Litres != 500 {
+		t.Errorf("bike = %v L; want the fake's 500", *drafts[2].Litres)
 	}
 
 	reqs := fake.Requests()

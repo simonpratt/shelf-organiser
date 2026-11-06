@@ -2,8 +2,9 @@ import { ensureTag, listItems } from "../fixtures/api";
 import { expect, test } from "../fixtures/test";
 
 // The server's test-mode fake of the Anthropic API makes one draft per
-// comma- or "and"-separated piece, 40 L each, tagging a piece that mentions
-// an existing tag's name.
+// comma- or "and"-separated piece, 40 L unless a keyword gives a rough size
+// (bike 500 L, toolbox 20 L, ...), tagging a piece that mentions an existing
+// tag's name.
 test("dictates a list, corrects the drafts and saves them all", async ({ page, request }) => {
   await ensureTag(request, ["Location", "Shed"]);
   await ensureTag(request, ["Type", "Camping"]);
