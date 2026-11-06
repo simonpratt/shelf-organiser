@@ -23,4 +23,12 @@ test("writes down a spoken dictation with the real model", async ({ page }) => {
   await expect(box).not.toHaveValue("", { timeout: 60_000 });
   const heard = (await box.inputValue()).toLowerCase();
   for (const words of ["camping chairs", "christmas lights", "tent", "shelf two", "shed"]) expect(heard).toContain(words);
+
+  // Half a second, too short to say anything in, isn't sent to Whisper, which would make words up.
+  await speak.click();
+  await expect(speak).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(500);
+  await speak.click();
+  await expect(page.getByText("Didn't catch anything.")).toBeVisible();
+  expect((await box.inputValue()).toLowerCase()).toBe(heard);
 });

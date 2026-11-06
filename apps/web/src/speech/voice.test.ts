@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOLD_MS, appendSpoken, downloadLabel, elapsedLabel, initialVoice, step, voiceSupport, type Event, type Voice } from "./voice";
+import { HOLD_MS, appendSpoken, downloadLabel, elapsedLabel, heardNothing, initialVoice, step, voiceSupport, withoutHallucination, type Event, type Voice } from "./voice";
 
 const run = (events: Event[], from: Voice = initialVoice) =>
   events.reduce<{ state: Voice; effects: (string | null)[] }>(
@@ -114,4 +114,26 @@ describe("labels", () => {
     expect(elapsedLabel(65_000)).toBe("1:05");
     expect(elapsedLabel(-5)).toBe("0:00");
   });
+});
+
+describe("heardNothing", () => {
+  const tone = (seconds: number, amplitude: number) =>
+    Float32Array.from({ length: seconds * 16_000 }, (_, i) => amplitude * Math.sin(i / 5));
+  it("passes a recording with a second or more of speech in it", () => expect(heardNothing(tone(1, 0.1))).toBe(false));
+  it("drops a tap shorter than a second, however loud", () => expect(heardNothing(tone(0.9, 0.5))).toBe(true));
+  it("drops a near-silent recording", () => expect(heardNothing(tone(5, 0.005))).toBe(true));
+  it("passes one short word in a long quiet recording", () => {
+    const audio = tone(5, 0.002);
+    audio.set(tone(0.3, 0.1), 2 * 16_000);
+    expect(heardNothing(audio)).toBe(false);
+  });
+});
+
+it("drops Whisper's stock phrases for silence, but keeps them inside a real list", () => {
+  expect(withoutHallucination(" you")).toBe("");
+  expect(withoutHallucination("Thank you.")).toBe("");
+  expect(withoutHallucination("Thanks for watching!")).toBe("");
+  expect(withoutHallucination("[BLANK_AUDIO]")).toBe("");
+  expect(withoutHallucination("Wheelbarrow.")).toBe("Wheelbarrow.");
+  expect(withoutHallucination("A drill, thank you.")).toBe("A drill, thank you.");
 });

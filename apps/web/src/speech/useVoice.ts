@@ -44,7 +44,9 @@ export function useVoice(onText: (text: string) => void, enabled: boolean) {
       recording.current = null;
       if (!rec) return;
       (async () => {
-        const audio = await decodeForWhisper(await rec.stop());
+        // A tap too short to hold any audio can't be decoded: nothing was said.
+        const audio = await decodeForWhisper(await rec.stop()).catch(() => null);
+        if (!audio) return "";
         await load();
         return transcriber().transcribe(audio);
       })().then(

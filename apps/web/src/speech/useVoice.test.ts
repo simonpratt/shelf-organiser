@@ -64,6 +64,19 @@ it("shows a failed transcription as an error and keeps the button ready", async 
   await waitFor(() => expect(result.current.voice.mic).toEqual({ status: "idle", error: "out of memory" }));
 });
 
+it("takes a recording too short to decode as nothing said", async () => {
+  fake.load.mockResolvedValue(undefined);
+  mic.decode.mockRejectedValue(new DOMException("Unable to decode audio data", "EncodingError"));
+  const onText = vi.fn();
+  const { result } = renderHook(() => useVoice(onText, true));
+  act(() => result.current.dispatch({ type: "press", now: 0 }));
+  await waitFor(() => expect(result.current.voice.mic.status).toBe("listening"));
+  act(() => result.current.dispatch({ type: "press", now: 1 }));
+  await waitFor(() => expect(result.current.voice.mic).toEqual({ status: "idle", notice: "nothing" }));
+  expect(fake.transcribe).not.toHaveBeenCalled();
+  expect(onText).not.toHaveBeenCalled();
+});
+
 it("loads nothing where the browser can't record", () => {
   renderHook(() => useVoice(vi.fn(), false));
   expect(fake.load).not.toHaveBeenCalled();

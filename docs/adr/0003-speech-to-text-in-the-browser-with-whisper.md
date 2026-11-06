@@ -31,4 +31,5 @@ Both wrote "crate **on** Christmas lights" and "fellow **America**". Published w
 
 - The image grows by about 120 MB (model, and two WASM builds: the plain one for Safari before 26 without WebGPU).
 - `getUserMedia` needs a secure context: over plain HTTP on a LAN address the screen says so and offers typing. Serving the app over HTTPS is the deployment's job.
+- Whisper makes words up for silence ("you", "Thank you."), so a recording under a second, or with no tenth of a second above a low loudness, is not sent to it, and its stock phrases for silence are dropped (`heardNothing`, `withoutHallucination` in `speech/voice.ts`).
 - The WebGPU path is untested (no GPU in the sandbox) and q8 is the WASM-friendly format, so on a WebGPU phone it may be no faster than WASM. If it proves slower, drop the WebGPU attempt in `speech/worker.ts`.

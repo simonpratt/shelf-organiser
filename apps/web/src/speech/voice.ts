@@ -105,6 +105,34 @@ export function step(state: Voice, event: Event): { state: Voice; effect: Effect
   }
 }
 
+/** Whisper takes 16 kHz mono samples. */
+export const SAMPLE_RATE = 16_000;
+/** A recording shorter than this is taken as nothing said: Whisper makes words up for it. */
+export const MIN_SPEECH_MS = 1000;
+/** The loudest tenth of a second must reach this RMS (full scale 1) to count as speech. */
+export const QUIET_RMS = 0.01;
+
+/** True for a recording too short or too quiet to hold speech, so it isn't transcribed at all. */
+export function heardNothing(audio: Float32Array): boolean {
+  if (audio.length < (SAMPLE_RATE * MIN_SPEECH_MS) / 1000) return true;
+  const window = SAMPLE_RATE / 10;
+  for (let start = 0; start + window <= audio.length; start += window) {
+    let sum = 0;
+    for (const sample of audio.subarray(start, start + window)) sum += sample * sample;
+    if (Math.sqrt(sum / window) >= QUIET_RMS) return false;
+  }
+  return true;
+}
+
+// What Whisper writes for noise or silence, learned from video subtitles.
+const hallucinations = new Set(["you", "thank you", "thanks", "thank you for watching", "thanks for watching", "bye", "blank audio", "silence", "music"]);
+
+/** The text, or "" when it is only one of Whisper's stock phrases for silence. */
+export function withoutHallucination(text: string): string {
+  const words = text.toLowerCase().replace(/[^a-z ]+/g, " ").replace(/\s+/g, " ").trim();
+  return hallucinations.has(words) ? "" : text;
+}
+
 /** Adds newly spoken text after what's already in the box, so speaking again adds to the list. */
 export function appendSpoken(existing: string, spoken: string): string {
   const text = spoken.trim();

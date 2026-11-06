@@ -1,6 +1,8 @@
 // Turns recorded audio into text with Whisper in a Web Worker (ADR 0003).
 // The e2e suite swaps in a fake by setting window.shelfFakeTranscriber before
-// the app loads, so browser tests don't load the real model.
+// the app loads, so browser tests don't load the real model (nor its check for
+// silence).
+import { heardNothing, withoutHallucination } from "./voice";
 
 export type ToWorker = { type: "load" } | { type: "transcribe"; id: number; audio: Float32Array };
 export type FromWorker =
@@ -60,12 +62,15 @@ function workerTranscriber(): Transcriber {
       });
       return loaded;
     },
-    transcribe(audio) {
+    async transcribe(audio) {
+      // Whisper makes words up for silence ("you", "Thank you."), so don't ask it.
+      if (heardNothing(audio)) return "";
       const id = next++;
-      return new Promise((resolve, reject) => {
+      const text = await new Promise<string>((resolve, reject) => {
         waiting.set(id, { resolve, reject });
         worker.postMessage({ type: "transcribe", id, audio } satisfies ToWorker, [audio.buffer]);
       });
+      return withoutHallucination(text);
     },
   };
 }
