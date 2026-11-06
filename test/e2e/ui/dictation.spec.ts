@@ -43,3 +43,31 @@ test("dictates a list, corrects the drafts and saves them all", async ({ page, r
     ["Drill", 10, 1, ["Location/Shed"]],
   ]);
 });
+
+test("starts a dictation with the Add form's location and puts it on every draft", async ({ page, request }) => {
+  await ensureTag(request, ["Type", "Camping"]);
+  await page.goto("/items/new");
+  await page.getByLabel("Name").fill("Tent");
+  await page.getByRole("radio", { name: /Crate/ }).click();
+  await page.getByRole("combobox", { name: "Tags" }).fill("Location/Shed/Shelf 3");
+  await page.getByRole("combobox", { name: "Tags" }).press("Enter");
+  await page.getByRole("button", { name: "Save and add another" }).click();
+  await expect(page.getByText("Saved “Tent”")).toBeVisible();
+
+  await page.getByRole("link", { name: "Dictate items" }).click();
+  const shared = page.getByRole("list", { name: "Chosen tags for every item" });
+  await expect(shared).toHaveText("Location › Shed › Shelf 3");
+  await page.getByLabel("What's here?").fill("camping chairs and a lamp");
+  await page.getByRole("button", { name: "Make drafts" }).click();
+  await expect(page.getByRole("heading", { name: "Check the drafts" })).toBeVisible();
+  await expect(shared).toHaveText("Location › Shed › Shelf 3");
+  await page.getByRole("button", { name: "Save all 2 items" }).click();
+  await expect(page.getByText("Saved 2 items")).toBeVisible();
+
+  const saved = Object.fromEntries((await listItems(request)).map((i) => [i.name, i.tags.map((t) => t.path.join("/"))]));
+  expect(saved).toEqual({
+    Tent: ["Location/Shed/Shelf 3"],
+    "Camping chairs": ["Location/Shed/Shelf 3", "Type/Camping"],
+    Lamp: ["Location/Shed/Shelf 3"],
+  });
+});

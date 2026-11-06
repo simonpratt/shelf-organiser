@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeSize, fromDraft, saveInOrder, toInputs } from "./drafts";
+import { describeSize, fromDraft, saveInOrder, toInputs, withShared } from "./drafts";
 
 const chairs = { name: "Camping chairs", quantity: 2, litres: 40, tags: [["Type", "Camping"]] };
 
@@ -18,7 +18,21 @@ describe("describeSize", () => {
   });
 });
 
+describe("withShared", () => {
+  it("adds the dictation's shared tags, replacing the draft's own in the same dimension", () => {
+    const shelf = ["Location", "Shed", "Shelf 2"];
+    expect(withShared([["Type", "Camping"], ["location", "Garage"]], [shelf])).toEqual([["Type", "Camping"], shelf]);
+    expect(withShared([shelf], [shelf])).toEqual([shelf]);
+    expect(withShared([["Type", "Camping"]], [])).toEqual([["Type", "Camping"]]);
+  });
+});
+
 describe("toInputs", () => {
+  it("gives every draft the shared tags", () => {
+    const { inputs } = toInputs([fromDraft(chairs)], [["Location", "Loft"]]);
+    expect(inputs?.[0]?.tags).toEqual([["Type", "Camping"], ["Location", "Loft"]]);
+  });
+
   it("returns inputs only when every draft is valid, with errors per draft", () => {
     const ok = fromDraft(chairs);
     const noSize = fromDraft({ ...chairs, name: "Lamp", litres: null });

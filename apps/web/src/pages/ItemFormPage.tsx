@@ -24,6 +24,7 @@ import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
 import { addTag, carriedTags, emptyForm, fromItem, toInput, type FormErrors, type ItemForm } from "../items/form";
 import { readSession, writeSession } from "../session/store";
+import type { DictateState } from "./DictatePage";
 
 // The top-level tag Claude last took as the Type dimension, kept for the tab.
 const TYPE_DIMENSION = "typeDimension";
@@ -126,7 +127,8 @@ function Editor({ item }: { item?: Item }) {
         actions={item && <Button variant="danger" busy={remove.isPending} disabled={busy} onClick={onDelete}>Delete</Button>} />
       {/* Hidden, not disabled, without an API key: typed entry is the whole app then. */}
       {!item && claude.data?.enabled && (
-        <Button to="/items/dictate" block size="lg" icon={<MicIcon />}>Dictate items</Button>
+        <Button to="/items/dictate" state={{ tags: carriedTags(form.tags, typeDimension) } satisfies DictateState}
+          block size="lg" icon={<MicIcon />}>Dictate items</Button>
       )}
       <TextField ref={nameRef} label="Name" value={form.name} onChange={set("name")} error={errors.name}
         autoFocus={!item} autoCapitalize="sentences" enterKeyHint="next" placeholder="e.g. Camping chairs" />

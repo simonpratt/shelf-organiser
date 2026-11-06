@@ -17,6 +17,8 @@ type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   /** lg: the one big call to action on a screen, such as Dictate items. */
   size?: "md" | "lg";
   to?: string;
+  /** History state for the screen `to` opens, such as tags to start with. */
+  state?: unknown;
   children?: ReactNode;
 };
 
@@ -27,7 +29,7 @@ const variants: Record<Variant, string> = {
   danger: "text-error border border-error hover:bg-error-tint",
 };
 
-export function Button({ variant = "secondary", icon, busy, block, size = "md", to, className, children, disabled, ...rest }: Props) {
+export function Button({ variant = "secondary", icon, busy, block, size = "md", to, state, className, children, disabled, ...rest }: Props) {
   const classes = cx(
     "inline-flex min-h-touch min-w-touch items-center justify-center gap-2 rounded-md px-4 font-medium",
     size === "lg" ? "min-h-14 text-lg" : "text-base",
@@ -45,7 +47,7 @@ export function Button({ variant = "secondary", icon, busy, block, size = "md", 
   );
   if (to !== undefined) {
     return (
-      <Link to={to} className={classes} aria-label={rest["aria-label"]}>
+      <Link to={to} state={state} className={classes} aria-label={rest["aria-label"]}>
         {content}
       </Link>
     );

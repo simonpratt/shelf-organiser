@@ -1,9 +1,10 @@
 // Dictation (T2, ADR 0001): say a list into the keyboard's microphone, let
 // Claude turn it into drafts, check and correct them, then save them all.
 // Nothing is saved until "Save all". The dictation and drafts are kept for the
-// tab until then, so Back or a reload loses nothing.
+// tab until then, so Back or a reload loses nothing. Tags for the whole
+// dictation (where it all is) start from the Add form's and go on every draft.
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { proposeTags, useClaude, useDraftItems } from "../api/claude";
 import { useCreateItemDetached } from "../api/items";
 import { useTags } from "../api/tags";
@@ -15,11 +16,17 @@ import { DraftCard } from "../components/DraftCard";
 import { EmptyState } from "../components/EmptyState";
 import { PageHeader } from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
+import { TagInput } from "../components/TagInput";
 import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
 import { fromDraft, saveInOrder, toInputs } from "../items/drafts";
 import type { FormErrors, ItemForm } from "../items/form";
 import { readSession, writeSession } from "../session/store";
+import { addTag } from "../items/form";
+import { parseTagPath, type TagPath } from "../tags/path";
+
+/** What the Add form passes on: its tags other than the Type dimension's. */
+export type DictateState = { tags: TagPath[] };
 
 const back = { to: "/items/new", label: "Back to adding an item" };
 
@@ -45,7 +52,7 @@ export function DictatePage() {
 }
 
 type Drafted = { key: number; form: ItemForm; errors: FormErrors };
-type Kept = { transcript: string; drafts: Drafted[] | null };
+type Kept = { transcript: string; drafts: Drafted[] | null; shared?: TagPath[]; sharedDraft?: string };
 const KEPT = "dictation";
 
 function Dictation() {
@@ -54,13 +61,22 @@ function Dictation() {
   const tags = useTags();
   const draftItems = useDraftItems();
   const createItem = useCreateItemDetached();
+  const passed = (useLocation().state as DictateState | null)?.tags ?? [];
   const [kept] = useState(() => readSession<Kept>(KEPT, { transcript: "", drafts: null }));
+  const started = kept.transcript !== "" || kept.drafts !== null;
   const [transcript, setTranscript] = useState(kept.transcript);
   const [drafts, setDrafts] = useState<Drafted[] | null>(kept.drafts);
+  const [shared, setShared] = useState<TagPath[]>(started ? (kept.shared ?? []) : passed);
+  const [sharedDraft, setSharedDraft] = useState(started ? (kept.sharedDraft ?? "") : "");
   const [nothingFound, setNothingFound] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  useEffect(() => writeSession(KEPT, { transcript, drafts }), [transcript, drafts]);
+  useEffect(() => writeSession(KEPT, { transcript, drafts, shared, sharedDraft }), [transcript, drafts, shared, sharedDraft]);
+  const existingTags = (tags.data ?? []).map((t) => t.path);
+  const sharedField = (
+    <TagInput label="Tags for every item" value={shared} onChange={setShared} draft={sharedDraft}
+      onDraftChange={setSharedDraft} existing={existingTags} />
+  );
 
   const onRead = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,7 +96,7 @@ function Dictation() {
 
   const onSaveAll = async () => {
     if (!drafts) return;
-    const { inputs, errors } = toInputs(drafts.map((d) => d.form));
+    const { inputs, errors } = toInputs(drafts.map((d) => d.form), addTag(shared, parseTagPath(sharedDraft)));
     setDrafts(drafts.map((d, i) => ({ ...d, errors: errors[i] ?? {} })));
     if (!inputs) return;
     setSaving(true);
@@ -107,6 +123,7 @@ function Dictation() {
         <TextField label="What's here?" multiline rows={6} value={transcript} onChange={setTranscript} autoFocus
           placeholder="e.g. two camping chairs, a crate of Christmas lights and the old tent, all on shelf 2"
           hint="Say one thing after another. Mention where things are, or what kind, and Claude picks matching tags." />
+        {sharedField}
         {nothingFound && <Banner tone="info">Claude didn't find any items in that. Try naming the things you can see.</Banner>}
         {draftItems.error && <Banner>{draftItems.error.message}</Banner>}
         <div className="flex-1" />
@@ -128,13 +145,14 @@ function Dictation() {
       <PageHeader title="Check the drafts" back={back}
         summary="Fix anything Claude got wrong, then save. Nothing is saved yet; your drafts are kept until you do."
         actions={<Button variant="ghost" onClick={() => setDrafts(null)} disabled={saving}>Edit dictation</Button>} />
+      {sharedField}
       {drafts.length === 0 ? (
         <EmptyState title="No drafts left" action={<Button onClick={() => setDrafts(null)}>Dictate again</Button>}>
           You removed them all.
         </EmptyState>
       ) : (
         drafts.map((d) => (
-          <DraftCard key={d.key} form={d.form} errors={d.errors} existingTags={(tags.data ?? []).map((t) => t.path)}
+          <DraftCard key={d.key} form={d.form} errors={d.errors} existingTags={existingTags}
             onChange={(change) => update(d.key, change)} onRemove={() => remove(d.key)}
             propose={async (form) => (await proposeTags({ name: form.name, note: form.note, tags: form.tags })).tags} />
         ))

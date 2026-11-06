@@ -1,7 +1,8 @@
 // Drafts read from a dictation: turning them into editable forms, checking
 // them all before anything is saved, and saving them one by one.
 import type { Draft } from "../api/client";
-import { emptyForm, toInput, type FormErrors, type ItemForm, type ItemInput } from "./form";
+import { samePath, type TagPath } from "../tags/path";
+import { addTag, emptyForm, toInput, type FormErrors, type ItemForm, type ItemInput } from "./form";
 import { formatLitres, presetFor } from "./size";
 
 export function fromDraft(d: Draft): ItemForm {
@@ -18,11 +19,22 @@ export function describeSize(form: ItemForm): string {
 }
 
 /**
+ * A draft's tags with the tags shared by the whole dictation, such as the
+ * shelf it was all on. A shared tag replaces the draft's own tags in the same
+ * dimension, so the shelf the user set wins over one Claude guessed.
+ */
+export function withShared(tags: TagPath[], shared: TagPath[]): TagPath[] {
+  const dims = shared.map((s) => s[0]!.toLowerCase());
+  const own = tags.filter((t) => !dims.includes(t[0]!.toLowerCase()) || shared.some((s) => samePath(s, t)));
+  return shared.reduce(addTag, own);
+}
+
+/**
  * Validates every draft. inputs is set only when all are valid, so a save
  * never stops halfway through on a draft the user could have fixed first.
  */
-export function toInputs(forms: ItemForm[]): { inputs?: ItemInput[]; errors: FormErrors[] } {
-  const results = forms.map(toInput);
+export function toInputs(forms: ItemForm[], shared: TagPath[] = []): { inputs?: ItemInput[]; errors: FormErrors[] } {
+  const results = forms.map((f) => toInput({ ...f, tags: withShared(f.tags, shared) }));
   const errors = results.map((r) => r.errors);
   if (results.some((r) => !r.input)) return { errors };
   return { inputs: results.map((r) => r.input!), errors };
