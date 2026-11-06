@@ -26,8 +26,8 @@ export function useEnsureTag() {
 export function useUpdateTag() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: async ({ id, name, parentId }: { id: number; name: string; parentId: number | null }) =>
-      unwrap(await api.PUT("/api/tags/{id}", { params: { path: { id } }, body: { name, parentId } })),
+    mutationFn: async ({ id, name, parentId, merge = false }: { id: number; name: string; parentId: number | null; merge?: boolean }) =>
+      unwrap(await api.PUT("/api/tags/{id}", { params: { path: { id } }, body: { name, parentId, merge } })),
     onSuccess: invalidate,
   });
 }

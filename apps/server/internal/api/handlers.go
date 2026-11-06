@@ -192,7 +192,7 @@ func (h *handlers) UpdateTag(ctx context.Context, req UpdateTagRequestObject) (U
 	if req.Body == nil {
 		return UpdateTag400JSONResponse{BadRequestJSONResponse{Error: "a JSON body is required"}}, nil
 	}
-	t, err := h.store.UpdateTag(ctx, req.Id, req.Body.Name, req.Body.ParentId)
+	t, err := h.store.UpdateTag(ctx, req.Id, req.Body.Name, req.Body.ParentId, req.Body.Merge != nil && *req.Body.Merge)
 	if msg, ok := validationMessage(err); ok {
 		return UpdateTag400JSONResponse{BadRequestJSONResponse{Error: msg}}, nil
 	}

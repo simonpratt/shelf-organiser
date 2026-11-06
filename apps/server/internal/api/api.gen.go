@@ -143,6 +143,8 @@ type EnsureTagJSONBody struct {
 
 // UpdateTagJSONBody defines parameters for UpdateTag.
 type UpdateTagJSONBody struct {
+	// Merge Merge into a sibling that already has the name instead of answering 409
+	Merge    *bool  `json:"merge,omitempty"`
 	Name     string `json:"name"`
 	ParentId *int64 `json:"parentId"`
 }

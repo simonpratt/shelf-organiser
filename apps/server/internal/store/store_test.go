@@ -168,7 +168,7 @@ func TestMoveTagCarriesDescendantsAndRefusesCycles(t *testing.T) {
 	item, _ := s.CreateItem(ctx, ItemInput{Name: "Paint", Litres: 4, Quantity: 1, Tags: [][]string{{"Location", "Shed", "Shelf 2"}}})
 
 	// Move Shed under Back room, renaming it.
-	if _, err := s.UpdateTag(ctx, shed, "Cupboard", &room.ID); err != nil {
+	if _, err := s.UpdateTag(ctx, shed, "Cupboard", &room.ID, false); err != nil {
 		t.Fatal(err)
 	}
 	item, _ = s.GetItem(ctx, item.ID)
@@ -177,17 +177,17 @@ func TestMoveTagCarriesDescendantsAndRefusesCycles(t *testing.T) {
 	}
 
 	// Moving a tag under its own descendant would make a cycle.
-	_, err := s.UpdateTag(ctx, room.ID, "Back room", &shelf.ID)
+	_, err := s.UpdateTag(ctx, room.ID, "Back room", &shelf.ID, false)
 	var v *ValidationError
 	if !errors.As(err, &v) {
 		t.Errorf("moving under a descendant: err = %v; want a ValidationError", err)
 	}
-	if _, err := s.UpdateTag(ctx, room.ID, "Back room", &room.ID); !errors.As(err, &v) {
+	if _, err := s.UpdateTag(ctx, room.ID, "Back room", &room.ID, false); !errors.As(err, &v) {
 		t.Errorf("moving under itself: err = %v; want a ValidationError", err)
 	}
 
 	// Moving to top level works with a nil parent.
-	top, err := s.UpdateTag(ctx, room.ID, "Back room", nil)
+	top, err := s.UpdateTag(ctx, room.ID, "Back room", nil, false)
 	if err != nil || top.ParentID != nil || !slices.Equal(top.Path, []string{"Back room"}) {
 		t.Errorf("move to top = %+v, %v; want a top-level Back room", top, err)
 	}
@@ -198,12 +198,73 @@ func TestRenameTagToASiblingsNameConflicts(t *testing.T) {
 	s := open(t)
 	a, _ := s.EnsureTag(ctx, []string{"Type", "Camping"})
 	_, _ = s.EnsureTag(ctx, []string{"Type", "Garden"})
-	if _, err := s.UpdateTag(ctx, a.ID, "garden", a.ParentID); !errors.Is(err, ErrConflict) {
+	if _, err := s.UpdateTag(ctx, a.ID, "garden", a.ParentID, false); !errors.Is(err, ErrConflict) {
 		t.Errorf("err = %v; want ErrConflict", err)
 	}
 	// Changing only the case of its own name is not a conflict.
-	if _, err := s.UpdateTag(ctx, a.ID, "CAMPING", a.ParentID); err != nil {
+	if _, err := s.UpdateTag(ctx, a.ID, "CAMPING", a.ParentID, false); err != nil {
 		t.Errorf("recasing own name: %v", err)
+	}
+}
+
+func TestMergingATagMovesItsItemsAndChildrenIntoTheSiblingWithThatName(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	bench, _ := s.EnsureTag(ctx, []string{"Location", "Shed", "Workbench"})
+	both, _ := s.CreateItem(ctx, ItemInput{Name: "Vice", Litres: 5, Quantity: 1,
+		Tags: [][]string{{"Location", "Shed", "Workbench"}, {"Location", "Shed", "Left shelf"}}})
+	drawer, _ := s.CreateItem(ctx, ItemInput{Name: "Screws", Litres: 1, Quantity: 1,
+		Tags: [][]string{{"Location", "Shed", "Workbench", "Drawer", "Top"}}})
+	hook, _ := s.CreateItem(ctx, ItemInput{Name: "Saw", Litres: 3, Quantity: 1,
+		Tags: [][]string{{"Location", "Shed", "Workbench", "Hooks"}}})
+	_, _ = s.EnsureTag(ctx, []string{"Location", "Shed", "Left shelf", "drawer", "Bottom"})
+
+	// Without merge the clash is refused and nothing changes.
+	if _, err := s.UpdateTag(ctx, bench.ID, "left shelf", bench.ParentID, false); !errors.Is(err, ErrConflict) {
+		t.Fatalf("err = %v; want ErrConflict", err)
+	}
+	got, err := s.UpdateTag(ctx, bench.ID, "left shelf", bench.ParentID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The survivor keeps its own name; same-named children merge too.
+	if want := []string{"Location", "Shed", "Left shelf"}; !slices.Equal(got.Path, want) {
+		t.Errorf("survivor = %v; want %v", got.Path, want)
+	}
+	tags, _ := s.ListTags(ctx)
+	if got, want := paths(tags), []string{"Location", "Location/Shed", "Location/Shed/Left shelf",
+		"Location/Shed/Left shelf/drawer", "Location/Shed/Left shelf/drawer/Bottom",
+		"Location/Shed/Left shelf/drawer/Top", "Location/Shed/Left shelf/Hooks"}; !slices.Equal(got, want) {
+		t.Errorf("tags = %v; want %v", got, want)
+	}
+	for _, c := range []struct {
+		id   int64
+		want []string
+	}{
+		{both.ID, []string{"Location/Shed/Left shelf"}},
+		{drawer.ID, []string{"Location/Shed/Left shelf/drawer/Top"}},
+		{hook.ID, []string{"Location/Shed/Left shelf/Hooks"}},
+	} {
+		it, _ := s.GetItem(ctx, c.id)
+		if got := refPaths(it.Tags); !slices.Equal(got, c.want) {
+			t.Errorf("%s tags = %v; want %v", it.Name, got, c.want)
+		}
+	}
+}
+
+func TestMovingATagOntoASameNamedTagMerges(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	loose, _ := s.EnsureTag(ctx, []string{"Shed"})
+	shed, _ := s.EnsureTag(ctx, []string{"Location", "Shed"})
+	item, _ := s.CreateItem(ctx, ItemInput{Name: "Rake", Litres: 8, Quantity: 1, Tags: [][]string{{"Shed", "Top shelf"}}})
+
+	if _, err := s.UpdateTag(ctx, loose.ID, "Shed", shed.ParentID, true); err != nil {
+		t.Fatal(err)
+	}
+	item, _ = s.GetItem(ctx, item.ID)
+	if got, want := refPaths(item.Tags), []string{"Location/Shed/Top shelf"}; !slices.Equal(got, want) {
+		t.Errorf("item tags = %v; want %v", got, want)
 	}
 }
 

@@ -69,7 +69,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Rename a tag and/or move it under another parent (null for top level) */
+        /**
+         * Rename a tag and/or move it under another parent (null for top level)
+         * @description When a sibling there already has the name, the answer is 409 unless merge is true. Then the tag is merged into that sibling in one transaction: its items get the sibling instead, its child tags move under it (merging any with the same name), the tag is deleted, and the sibling comes back.
+         */
         put: operations["updateTag"];
         post?: never;
         /** Delete a tag and all its descendants; items keep existing but lose those tags */
@@ -463,11 +466,13 @@ export interface operations {
                     name: string;
                     /** Format: int64 */
                     parentId: number | null;
+                    /** @description Merge into a sibling that already has the name instead of answering 409 */
+                    merge?: boolean;
                 };
             };
         };
         responses: {
-            /** @description The updated tag */
+            /** @description The updated tag, or the one it was merged into */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -478,7 +483,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
-            /** @description A sibling already has that name */
+            /** @description A sibling already has that name and merge wasn't asked for */
             409: {
                 headers: {
                     [name: string]: unknown;

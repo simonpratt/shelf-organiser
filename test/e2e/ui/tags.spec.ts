@@ -29,3 +29,22 @@ test("renames and moves a tag, then deletes it with its sub-tags while keeping t
   const [tent] = await listItems(request);
   expect(tent?.tags.map((t) => t.path.join("/"))).toEqual(["Type/Camping"]);
 });
+
+test("renaming a tag to a sibling's name merges them after confirming", async ({ page, request }) => {
+  await createItem(request, { name: "Vice", litres: 5, tags: [["Location", "Shed", "Workbench"]] });
+  await createItem(request, { name: "Saw", litres: 3, tags: [["Location", "Shed", "Left shelf"]] });
+  await page.goto("/tags");
+
+  await page.getByRole("button", { name: /^Workbench/ }).click();
+  const edit = page.getByRole("dialog", { name: "Edit “Location › Shed › Workbench”" });
+  await edit.getByLabel("Name").fill("Left shelf");
+  await edit.getByRole("button", { name: "Merge…" }).click();
+  const confirm = page.getByRole("dialog", { name: "Merge “Workbench” into “Left shelf”?" });
+  await expect(confirm).toContainText("Its 1 item moves to “Location › Shed › Left shelf”");
+  await confirm.getByRole("button", { name: "Merge tags" }).click();
+  await expect(page.getByText("Merged into “Location › Shed › Left shelf”")).toBeVisible();
+
+  expect(await tagPaths(request)).toEqual(["Location", "Location/Shed", "Location/Shed/Left shelf"]);
+  const tags = Object.fromEntries((await listItems(request)).map((i) => [i.name, i.tags.map((t) => t.path.join("/"))]));
+  expect(tags).toEqual({ Vice: ["Location/Shed/Left shelf"], Saw: ["Location/Shed/Left shelf"] });
+});

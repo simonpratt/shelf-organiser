@@ -205,8 +205,11 @@ func (s *Store) tag(ctx context.Context, id int64) (Tag, error) {
 }
 
 // UpdateTag renames tag id and moves it under parentID (nil for top level).
-// Its descendants and item links move with it.
-func (s *Store) UpdateTag(ctx context.Context, id int64, name string, parentID *int64) (Tag, error) {
+// Its descendants and item links move with it. When a sibling there already
+// has the name, UpdateTag returns ErrConflict, unless merge is set: then tag
+// id is merged into that sibling (see mergeInto) and the sibling is returned.
+func (s *Store) UpdateTag(ctx context.Context, id int64, name string, parentID *int64, merge bool) (Tag, error) {
+	survivor := id
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		tags, err := loadTags(ctx, tx)
 		if err != nil {
@@ -233,9 +236,14 @@ func (s *Store) UpdateTag(ctx context.Context, id int64, name string, parentID *
 				p = tags[*p.ParentID]
 			}
 		}
-		if _, err := siblingNamed(ctx, tx, parentID, name, id); err == nil {
+		sibling, err := siblingNamed(ctx, tx, parentID, name, id)
+		switch {
+		case err == nil && !merge:
 			return ErrConflict
-		} else if !errors.Is(err, ErrNotFound) {
+		case err == nil:
+			survivor = sibling
+			return mergeInto(ctx, tx, id, sibling)
+		case !errors.Is(err, ErrNotFound):
 			return err
 		}
 		_, err = tx.ExecContext(ctx, "UPDATE tags SET name = ?, parent_id = ? WHERE id = ?", name, parentID, id)
@@ -244,7 +252,55 @@ func (s *Store) UpdateTag(ctx context.Context, id int64, name string, parentID *
 	if err != nil {
 		return Tag{}, err
 	}
-	return s.tag(ctx, id)
+	return s.tag(ctx, survivor)
+}
+
+// mergeInto folds tag src into tag dst and deletes src: src's items get dst
+// instead, and src's child tags move under dst, each merged in turn into a
+// child of dst with the same name (ignoring case). dst keeps its name.
+func mergeInto(ctx context.Context, tx *sql.Tx, src, dst int64) error {
+	if _, err := tx.ExecContext(ctx,
+		"INSERT OR IGNORE INTO item_tags (item_id, tag_id) SELECT item_id, ? FROM item_tags WHERE tag_id = ?", dst, src); err != nil {
+		return err
+	}
+	type child struct {
+		id   int64
+		name string
+	}
+	var children []child
+	rows, err := tx.QueryContext(ctx, "SELECT id, name FROM tags WHERE parent_id = ?", src)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var c child
+		if err := rows.Scan(&c.id, &c.name); err != nil {
+			rows.Close()
+			return err
+		}
+		children = append(children, c)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, c := range children {
+		same, err := siblingNamed(ctx, tx, &dst, c.name, 0)
+		switch {
+		case err == nil:
+			if err := mergeInto(ctx, tx, c.id, same); err != nil {
+				return err
+			}
+		case errors.Is(err, ErrNotFound):
+			if _, err := tx.ExecContext(ctx, "UPDATE tags SET parent_id = ? WHERE id = ?", dst, c.id); err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+	_, err = tx.ExecContext(ctx, "DELETE FROM tags WHERE id = ?", src)
+	return err
 }
 
 // DeleteTag deletes tag id and all its descendants. Items tagged with any of

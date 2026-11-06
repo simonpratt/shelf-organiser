@@ -104,6 +104,12 @@ paths:
     put:
       operationId: updateTag
       summary: Rename a tag and/or move it under another parent (null for top level)
+      description: >
+        When a sibling there already has the name, the answer is 409 unless
+        merge is true. Then the tag is merged into that sibling in one
+        transaction: its items get the sibling instead, its child tags move
+        under it (merging any with the same name), the tag is deleted, and
+        the sibling comes back.
       requestBody:
         required: true
         content:
@@ -117,16 +123,19 @@ paths:
                   type: integer
                   format: int64
                   nullable: true
+                merge:
+                  description: Merge into a sibling that already has the name instead of answering 409
+                  type: boolean
       responses:
         "200":
-          description: The updated tag
+          description: The updated tag, or the one it was merged into
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Tag" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: A sibling already has that name
+          description: A sibling already has that name and merge wasn't asked for
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
