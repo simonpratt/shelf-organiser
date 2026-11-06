@@ -97,9 +97,13 @@ describe("step", () => {
 });
 
 describe("appendSpoken", () => {
-  it("adds what was said after the text so far", () => {
+  it("adds what was said after the text so far, keeping the items apart", () => {
     expect(appendSpoken("", " two chairs ")).toBe("two chairs");
-    expect(appendSpoken("two chairs,\n", "and a lamp")).toBe("two chairs, and a lamp");
+    expect(appendSpoken("  \n", "two chairs")).toBe("two chairs");
+    expect(appendSpoken("two chairs", "a lamp")).toBe("two chairs, a lamp");
+    expect(appendSpoken("Two chairs. ", "A lamp.")).toBe("Two chairs. A lamp.");
+    expect(appendSpoken("two chairs,", "a lamp")).toBe("two chairs, a lamp");
+    expect(appendSpoken("two chairs\n", "a lamp")).toBe("two chairs\na lamp");
     expect(appendSpoken("two chairs", "")).toBe("two chairs");
   });
 });

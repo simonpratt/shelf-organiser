@@ -133,12 +133,18 @@ export function withoutHallucination(text: string): string {
   return hallucinations.has(words) ? "" : text;
 }
 
-/** Adds newly spoken text after what's already in the box, so speaking again adds to the list. */
+/**
+ * Adds newly spoken text after what's already in the box, so speaking again
+ * adds to the list: on a new line after one, after a space following
+ * punctuation, else after a comma, so two items never run together.
+ */
 export function appendSpoken(existing: string, spoken: string): string {
   const text = spoken.trim();
   if (!text) return existing;
   const before = existing.trimEnd();
-  return before ? `${before} ${text}` : text;
+  if (!before) return text;
+  if (/\n\s*$/.test(existing)) return existing.replace(/[^\S\n]+$/, "") + text;
+  return /[.,;:!?]$/.test(before) ? `${before} ${text}` : `${before}, ${text}`;
 }
 
 /** "23 of 77 MB", for the first-time model download. */
