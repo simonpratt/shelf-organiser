@@ -2,8 +2,9 @@
 // action such as Undo. One at a time; a new toast replaces the last. It sits
 // above the nav bar and the Add button (or a form's ActionBar), and gets out
 // of the way so it never hides what the user does next: it goes as soon as
-// they touch anything else or focus a field, and a plain status toast lets
-// taps through to what is under it and leaves after a few seconds.
+// they touch anything else or press a key (not when a screen focuses its
+// first field itself), and a plain status toast lets taps through to what is
+// under it and leaves after a few seconds.
 import { createContext, use, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "../cx";
 import { Button } from "./Button";
@@ -25,20 +26,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     // Only this toast: a newer one may already have replaced it.
     const dismiss = () => setToast((t) => (t?.key === toast.key ? null : t));
     const timer = setTimeout(dismiss, toast.action ? TOAST_MS : STATUS_TOAST_MS);
-    const onFocus = (e: FocusEvent) => {
-      if (e.target instanceof HTMLElement && e.target.matches("input, textarea, select")) dismiss();
-    };
-    // Any touch elsewhere (a tap, the start of a scroll, a link to another
-    // screen) means the user has moved on. Taps on the toast's own action count.
-    const onPointer = (e: PointerEvent) => {
+    // Any touch or key elsewhere (a tap, the start of a scroll, typing in a
+    // field) means the user has moved on. Using the toast's own action doesn't.
+    const onInput = (e: Event) => {
       if (!(e.target instanceof Node && region.current?.contains(e.target) && toast.action)) dismiss();
     };
-    document.addEventListener("focusin", onFocus);
-    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onInput, true);
+    document.addEventListener("pointerdown", onInput, true);
     return () => {
       clearTimeout(timer);
-      document.removeEventListener("focusin", onFocus);
-      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onInput, true);
+      document.removeEventListener("pointerdown", onInput, true);
     };
   }, [toast]);
   return (

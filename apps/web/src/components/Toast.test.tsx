@@ -47,3 +47,13 @@ it("keeps an Undo toast tappable, and goes on a touch elsewhere", async () => {
   await user.click(screen.getByRole("button", { name: "Something else" }));
   expect(screen.queryByText("Saved Tent")).toBeNull();
 });
+
+it("stays when a new screen focuses its first field, and goes once the user types", async () => {
+  const user = userEvent.setup();
+  render(<ToastProvider><Harness /><input aria-label="Name" /></ToastProvider>);
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  act(() => screen.getByLabelText("Name").focus());
+  expect(screen.getByText("Saved Tent")).toBeTruthy();
+  await user.keyboard("T");
+  expect(screen.queryByText("Saved Tent")).toBeNull();
+});
