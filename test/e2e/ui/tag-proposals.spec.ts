@@ -86,7 +86,7 @@ test("knows the Type dimension from page load, so a fresh tab carries only the l
   await page.goto("/items/new");
   await page.getByLabel("Name").fill("Rake");
   await page.getByRole("radio", { name: /Crate/ }).click();
-  for (const path of ["Location/Shed", "Kind/Garden"]) {
+  for (const path of ["Location/Shed", "Plan/Sell", "Kind/Garden"]) {
     await page.getByRole("combobox", { name: "Tags" }).fill(path);
     await page.getByRole("combobox", { name: "Tags" }).press("Enter");
   }

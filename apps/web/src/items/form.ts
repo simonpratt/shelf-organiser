@@ -40,6 +40,11 @@ export function typeDimension(tags: readonly { name: string; isTypeDimension: bo
   return tags?.find((t) => t.isTypeDimension)?.name ?? null;
 }
 
+/** The name of the Location dimension, if the tag tree has one. */
+export function locationDimension(tags: readonly { name: string; isLocationDimension: boolean }[] | undefined): string | null {
+  return tags?.find((t) => t.isLocationDimension)?.name ?? null;
+}
+
 /** True when one of tags is in dimension (null: there is no such dimension). */
 export function hasTagIn(tags: TagPath[], dimension: string | null): boolean {
   return dimension !== null && tags.some((t) => t[0]?.toLowerCase() === dimension.toLowerCase());
@@ -47,11 +52,11 @@ export function hasTagIn(tags: TagPath[], dimension: string | null): boolean {
 
 /**
  * The tags Save and add another keeps for the next item, which is usually
- * from the same shelf but rarely the same kind of thing: all but those in
- * the Type dimension.
+ * from the same shelf but rarely the same kind of thing, or the same plan
+ * for it: only those in the Location dimension (none while there is none).
  */
-export function carriedTags(tags: TagPath[], dimension: string | null): TagPath[] {
-  return tags.filter((t) => !hasTagIn([t], dimension));
+export function carriedTags(tags: TagPath[], location: string | null): TagPath[] {
+  return tags.filter((t) => hasTagIn([t], location));
 }
 
 export function toInput(form: ItemForm): { input?: ItemInput; errors: FormErrors } {

@@ -352,7 +352,7 @@ components:
       example: ["Type", "Camping", "Tents"]
     Tag:
       type: object
-      required: [id, name, parentId, path, itemCount, totalSpace, isTypeDimension]
+      required: [id, name, parentId, path, itemCount, totalSpace, isTypeDimension, isLocationDimension]
       properties:
         id: { type: integer, format: int64 }
         name: { type: string }
@@ -372,6 +372,12 @@ components:
           description: >
             True on at most one top-level tag, the Type dimension: the one
             Claude first took as it, else one named Type, Kind or Category
+          type: boolean
+        isLocationDimension:
+          description: >
+            True on at most one top-level tag, never the Type dimension: the
+            Location dimension, the one named Location, Place, Room or Where,
+            else the one the first saved item's first other tag was in
           type: boolean
     TagRef:
       type: object

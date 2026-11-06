@@ -24,7 +24,7 @@ import { TagInput } from "../components/TagInput";
 import { TagProposals } from "../components/TagProposals";
 import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
-import { addTag, carriedTags, emptyForm, fromItem, toInput, typeDimension, type FormErrors, type ItemForm } from "../items/form";
+import { addTag, carriedTags, emptyForm, fromItem, locationDimension, toInput, typeDimension, type FormErrors, type ItemForm } from "../items/form";
 import type { DictateState } from "./DictatePage";
 
 export function ItemFormPage() {
@@ -64,6 +64,7 @@ function Editor({ item }: { item?: Item }) {
   const [mode, setMode] = useState<"save" | "another">("save");
   const qc = useQueryClient();
   const dimension = typeDimension(tags.data);
+  const location = locationDimension(tags.data);
   const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     // A fixed field drops its error straight away rather than on the next save.
@@ -81,8 +82,8 @@ function Editor({ item }: { item?: Item }) {
     try {
       const saved = await save.mutateAsync(input);
       if (another) {
-        // The save has refreshed the tags, which may have just started a Type dimension.
-        setForm(emptyForm(carriedTags(input.tags, typeDimension(qc.getQueryData<Tag[]>(tagKeys.all)))));
+        // The save has refreshed the tags, which may have just started a Location dimension.
+        setForm(emptyForm(carriedTags(input.tags, locationDimension(qc.getQueryData<Tag[]>(tagKeys.all)))));
         toast({ message: `Saved “${saved.name}”. Add the next one.` });
         nameRef.current?.focus();
       } else {
@@ -127,7 +128,7 @@ function Editor({ item }: { item?: Item }) {
         actions={item && <Button variant="danger" busy={remove.isPending} disabled={busy} onClick={onDelete}>Delete</Button>} />
       {/* Hidden, not disabled, without an API key: typed entry is the whole app then. */}
       {!item && claude.data?.enabled && (
-        <Button to="/items/dictate" state={{ tags: carriedTags(form.tags, dimension) } satisfies DictateState}
+        <Button to="/items/dictate" state={{ tags: carriedTags(form.tags, location) } satisfies DictateState}
           block size="lg" icon={<MicIcon />}>Dictate items</Button>
       )}
       <TextField ref={nameRef} label="Name" value={form.name} onChange={set("name")} error={errors.name}

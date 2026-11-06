@@ -19,9 +19,10 @@ type Tag struct {
 	// item tagged at several levels once.
 	ItemCount  int
 	TotalSpace float64
-	// TypeDimension is set on at most one top-level tag: the Type dimension
-	// (see typeDimension).
-	TypeDimension bool
+	// TypeDimension and LocationDimension are each set on at most one
+	// top-level tag, never the same one (see resolveDimensions).
+	TypeDimension     bool
+	LocationDimension bool
 }
 
 // TagRef is a tag as attached to an item.
@@ -68,7 +69,7 @@ func loadTags(ctx context.Context, q queryer) (map[int64]*Tag, error) {
 			JOIN item_tags it ON it.tag_id = sub.id
 			JOIN items i ON i.id = it.item_id
 		)
-		SELECT t.id, t.name, t.parent_id, t.is_type, COUNT(l.id), COALESCE(SUM(l.space), 0)
+		SELECT t.id, t.name, t.parent_id, t.is_type, t.is_location, COUNT(l.id), COALESCE(SUM(l.space), 0)
 		FROM tags t LEFT JOIN linked l ON l.top = t.id
 		GROUP BY t.id`)
 	if err != nil {
@@ -79,7 +80,7 @@ func loadTags(ctx context.Context, q queryer) (map[int64]*Tag, error) {
 	for rows.Next() {
 		var t Tag
 		var parent sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.Name, &parent, &t.TypeDimension, &t.ItemCount, &t.TotalSpace); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &parent, &t.TypeDimension, &t.LocationDimension, &t.ItemCount, &t.TotalSpace); err != nil {
 			return nil, err
 		}
 		if parent.Valid {
@@ -93,33 +94,49 @@ func loadTags(ctx context.Context, q queryer) (map[int64]*Tag, error) {
 	for _, t := range tags {
 		t.Path = pathOf(tags, t.ID)
 	}
-	if t := typeDimension(tags); t != nil {
-		t.TypeDimension = true
-	}
+	resolveDimensions(tags)
 	return tags, nil
 }
 
-// typeNames are the names that make a top-level tag the Type dimension when
-// none has been remembered, in order of preference.
-var typeNames = []string{"type", "kind", "category"}
+// typeNames and locationNames are the names that make a top-level tag the
+// Type or Location dimension when none has been remembered, in order of
+// preference.
+var (
+	typeNames     = []string{"type", "kind", "category"}
+	locationNames = []string{"location", "place", "room", "where"}
+)
 
-// typeDimension returns the Type dimension: the top-level tag remembered as
-// it (RememberTypeDimension), else the first top-level tag named as in
-// typeNames, else nil. It clears TypeDimension on every other tag, so callers
-// only need to set it on the one returned.
-func typeDimension(tags map[int64]*Tag) *Tag {
+// resolveDimensions leaves TypeDimension and LocationDimension set only on
+// the Type and Location dimensions. Each is the top-level tag remembered as
+// it, else the first top-level tag named as in its names list, else none;
+// the Type dimension is resolved first and is never also the Location one.
+func resolveDimensions(tags map[int64]*Tag) {
+	typ := pickDimension(tags, func(t *Tag) *bool { return &t.TypeDimension }, typeNames, nil)
+	loc := pickDimension(tags, func(t *Tag) *bool { return &t.LocationDimension }, locationNames, typ)
+	if typ != nil {
+		typ.TypeDimension = true
+	}
+	if loc != nil {
+		loc.LocationDimension = true
+	}
+}
+
+// pickDimension clears flag on every tag and returns the top-level tag it was
+// set on (remembered), else the first named as in names, skipping skip.
+func pickDimension(tags map[int64]*Tag, flag func(*Tag) *bool, names []string, skip *Tag) *Tag {
 	var remembered *Tag
-	named := make([]*Tag, len(typeNames))
+	named := make([]*Tag, len(names))
 	for _, t := range tags {
-		if t.ParentID != nil {
-			t.TypeDimension = false
+		f := flag(t)
+		was := *f
+		*f = false
+		if t.ParentID != nil || t == skip {
 			continue
 		}
-		if t.TypeDimension {
+		if was {
 			remembered = t
 		}
-		t.TypeDimension = false
-		if i := slices.Index(typeNames, strings.ToLower(t.Name)); i >= 0 {
+		if i := slices.Index(names, strings.ToLower(t.Name)); i >= 0 {
 			named[i] = t
 		}
 	}
@@ -129,6 +146,36 @@ func typeDimension(tags map[int64]*Tag) *Tag {
 	for _, t := range named {
 		if t != nil {
 			return t
+		}
+	}
+	return nil
+}
+
+// rememberLocationDimension makes the dimension of the first of paths
+// outside the Type dimension the Location dimension, when there is none yet:
+// an item's first such tag is usually where it is.
+func rememberLocationDimension(ctx context.Context, tx *sql.Tx, paths [][]string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	tags, err := loadTags(ctx, tx)
+	if err != nil {
+		return err
+	}
+	typ := ""
+	for _, t := range tags {
+		if t.LocationDimension {
+			return nil
+		}
+		if t.TypeDimension {
+			typ = t.Name
+		}
+	}
+	for _, p := range paths {
+		if !strings.EqualFold(p[0], typ) {
+			_, err := tx.ExecContext(ctx,
+				"UPDATE tags SET is_location = 1 WHERE parent_id IS NULL AND name = ? COLLATE NOCASE AND NOT EXISTS (SELECT 1 FROM tags WHERE is_location = 1)", p[0])
+			return err
 		}
 	}
 	return nil
@@ -298,9 +345,10 @@ func (s *Store) UpdateTag(ctx context.Context, id int64, name string, parentID *
 		case !errors.Is(err, ErrNotFound):
 			return err
 		}
-		// Only a top-level tag can be the Type dimension.
+		// Only a top-level tag can be a remembered dimension.
 		_, err = tx.ExecContext(ctx,
-			"UPDATE tags SET name = ?, parent_id = ?, is_type = is_type AND ? IS NULL WHERE id = ?", name, parentID, parentID, id)
+			"UPDATE tags SET name = ?, parent_id = ?, is_type = is_type AND ? IS NULL, is_location = is_location AND ? IS NULL WHERE id = ?",
+			name, parentID, parentID, parentID, id)
 		return err
 	})
 	if err != nil {
@@ -312,10 +360,10 @@ func (s *Store) UpdateTag(ctx context.Context, id int64, name string, parentID *
 // mergeInto folds tag src into tag dst and deletes src: src's items get dst
 // instead, and src's child tags move under dst, each merged in turn into a
 // child of dst with the same name (ignoring case). dst keeps its name, and
-// becomes the Type dimension if src was it and dst is top level.
+// becomes the Type or Location dimension if src was it and dst is top level.
 func mergeInto(ctx context.Context, tx *sql.Tx, src, dst int64) error {
-	var wasType bool
-	if err := tx.QueryRowContext(ctx, "SELECT is_type FROM tags WHERE id = ?", src).Scan(&wasType); err != nil {
+	var wasType, wasLocation bool
+	if err := tx.QueryRowContext(ctx, "SELECT is_type, is_location FROM tags WHERE id = ?", src).Scan(&wasType, &wasLocation); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx,
@@ -362,7 +410,12 @@ func mergeInto(ctx context.Context, tx *sql.Tx, src, dst int64) error {
 		return err
 	}
 	if wasType {
-		_, err = tx.ExecContext(ctx, "UPDATE tags SET is_type = 1 WHERE id = ? AND parent_id IS NULL", dst)
+		if _, err = tx.ExecContext(ctx, "UPDATE tags SET is_type = 1 WHERE id = ? AND parent_id IS NULL", dst); err != nil {
+			return err
+		}
+	}
+	if wasLocation {
+		_, err = tx.ExecContext(ctx, "UPDATE tags SET is_location = 1 WHERE id = ? AND parent_id IS NULL", dst)
 	}
 	return err
 }

@@ -123,7 +123,9 @@ func itemTagLinks(ctx context.Context, q queryer) (map[int64][]int64, error) {
 	return links, rows.Err()
 }
 
-// CreateItem adds an item, creating any missing tags in its tag paths.
+// CreateItem adds an item, creating any missing tags in its tag paths. With
+// no Location dimension yet, its first tag outside the Type dimension starts
+// one (rememberLocationDimension).
 func (s *Store) CreateItem(ctx context.Context, in ItemInput) (Item, error) {
 	in, err := in.clean()
 	if err != nil {
@@ -140,7 +142,10 @@ func (s *Store) CreateItem(ctx context.Context, in ItemInput) (Item, error) {
 		if id, err = res.LastInsertId(); err != nil {
 			return err
 		}
-		return setItemTags(ctx, tx, id, in.Tags)
+		if err := setItemTags(ctx, tx, id, in.Tags); err != nil {
+			return err
+		}
+		return rememberLocationDimension(ctx, tx, in.Tags)
 	})
 	if err != nil {
 		return Item{}, err

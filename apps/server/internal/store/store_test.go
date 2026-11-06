@@ -477,3 +477,53 @@ func TestTheTypeDimensionIsTheRememberedTopLevelTagElseOneNamedLikeIt(t *testing
 		t.Errorf("after a move down and back: Type dimension = %q; want kind by name again", got)
 	}
 }
+
+func locationDimensionOf(t *testing.T, s *Store) string {
+	t.Helper()
+	tags, err := s.ListTags(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	for _, tag := range tags {
+		if tag.LocationDimension {
+			found = append(found, strings.Join(tag.Path, "/"))
+		}
+	}
+	if len(found) > 1 {
+		t.Fatalf("Location dimensions = %v; want at most one", found)
+	}
+	if len(found) == 0 {
+		return ""
+	}
+	return found[0]
+}
+
+func TestTheLocationDimensionIsOneNamedLikeItElseTheFirstSavedItemsFirstOtherTag(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	_, _ = s.EnsureTag(ctx, []string{"Room", "Garage"})
+	if got := locationDimensionOf(t, s); got != "Room" {
+		t.Errorf("by name: Location dimension = %q; want Room", got)
+	}
+
+	s = open(t)
+	_, _ = s.EnsureTag(ctx, []string{"Plan", "Sell"})
+	if got := locationDimensionOf(t, s); got != "" {
+		t.Errorf("before any item: Location dimension = %q; want none", got)
+	}
+	// The Type tag is passed over; the first other one starts the dimension, and sticks.
+	if _, err := s.CreateItem(ctx, ItemInput{Name: "Drill", Litres: 5, Quantity: 1, Tags: [][]string{{"Type", "Tools"}, {"shed", "Shelf 1"}, {"Plan", "Sell"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateItem(ctx, ItemInput{Name: "Bike", Litres: 500, Quantity: 1, Tags: [][]string{{"Plan", "Keep"}}}); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = s.EnsureTag(ctx, []string{"Location"})
+	if got := locationDimensionOf(t, s); got != "shed" {
+		t.Errorf("remembered: Location dimension = %q; want shed", got)
+	}
+	if got := typeDimensionOf(t, s); got != "Type" {
+		t.Errorf("Type dimension = %q; want Type, unaffected", got)
+	}
+}

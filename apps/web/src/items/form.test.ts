@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addTag, carriedTags, emptyForm, fromItem, hasTagIn, toInput, typeDimension } from "./form";
+import { addTag, carriedTags, emptyForm, fromItem, hasTagIn, locationDimension, toInput, typeDimension } from "./form";
 
 describe("toInput", () => {
   it("builds the API input, trimming text", () => {
@@ -33,10 +33,15 @@ it("round-trips an item into the form", () => {
   expect(toInput(form).input).toEqual({ name: "Tent", litres: 2.5, quantity: 3, note: "", tags: [["Type"]] });
 });
 
-it("carries every tag but the Type dimension's to the next item", () => {
-  const tags = [["Location", "Shed", "Wall rack"], ["Type", "Tools", "Power tools"], ["Project", "Deck"]];
-  expect(carriedTags(tags, "type")).toEqual([["Location", "Shed", "Wall rack"], ["Project", "Deck"]]);
-  expect(carriedTags(tags, null)).toEqual(tags);
+it("carries only the Location dimension's tags to the next item", () => {
+  const tags = [["Location", "Shed", "Wall rack"], ["Type", "Tools", "Power tools"], ["Plan", "Sell"]];
+  expect(carriedTags(tags, "location")).toEqual([["Location", "Shed", "Wall rack"]]);
+  expect(carriedTags(tags, null)).toEqual([]);
+});
+
+it("names the Location dimension the server marked, or none", () => {
+  expect(locationDimension([{ name: "Shed", isLocationDimension: true }])).toBe("Shed");
+  expect(locationDimension([{ name: "Location", isLocationDimension: false }])).toBeNull();
 });
 
 it("names the Type dimension the server marked, or none", () => {

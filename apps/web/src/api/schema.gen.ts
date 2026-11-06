@@ -215,6 +215,8 @@ export interface components {
             totalSpace: number;
             /** @description True on at most one top-level tag, the Type dimension: the one Claude first took as it, else one named Type, Kind or Category */
             isTypeDimension: boolean;
+            /** @description True on at most one top-level tag, never the Type dimension: the Location dimension, the one named Location, Place, Room or Where, else the one the first saved item's first other tag was in */
+            isLocationDimension: boolean;
         };
         TagRef: {
             /** Format: int64 */

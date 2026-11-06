@@ -25,7 +25,7 @@ import { readSession, writeSession } from "../session/store";
 import { addTag, typeDimension } from "../items/form";
 import { parseTagPath, type TagPath } from "../tags/path";
 
-/** What the Add form passes on: its tags other than the Type dimension's. */
+/** What the Add form passes on: its tags in the Location dimension. */
 export type DictateState = { tags: TagPath[] };
 
 const back = { to: "/items/new", label: "Back to adding an item" };

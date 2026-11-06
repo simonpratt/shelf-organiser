@@ -50,6 +50,10 @@ _Avoid_: root tag, axis, facet
 The dimension that says what kind of thing an item is: the one Claude first took as it, else the one named Type, Kind or Category. Once known it is the same on every screen. It is the only one Claude proposes tags in; where things are is for the user to say.
 _Avoid_: category, classification
 
+**Location dimension**:
+The dimension that says where an item is: the one named Location, Place, Room or Where, else the one the first saved item's first tag outside the Type dimension was in. Once known it is the same on every screen. It is the only one carried on to the next item added, since the next thing is usually from the same shelf but not of the same kind or plan.
+_Avoid_: place (as a term), area
+
 **Proposed tag**:
 A tag Claude puts forward for an item, in the Type dimension, possibly one that doesn't exist yet ("New"). It is added only when the user accepts it.
 _Avoid_: suggestion (the tag field's autocomplete), auto-tag
