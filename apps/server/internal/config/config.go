@@ -20,7 +20,13 @@ type Config struct {
 	AnthropicAPIKey Secret
 	// AnthropicBaseURL overrides the Anthropic API's address; empty for the real one.
 	AnthropicBaseURL string
+	// Username and Password turn on the login: both set, or neither (no login).
+	Username string
+	Password Secret
 }
+
+// AuthEnabled reports whether the app asks for a login.
+func (c Config) AuthEnabled() bool { return c.Username != "" }
 
 // Secret holds a value that must never be printed or logged. Every
 // formatting path (fmt verbs, slog) renders it as a placeholder; call Reveal
@@ -82,6 +88,13 @@ func Load(getenv func(string) string) (Config, error) {
 			errs = append(errs, fmt.Errorf("ANTHROPIC_BASE_URL must be an http:// or https:// URL, got %q", u))
 		}
 		cfg.AnthropicBaseURL = u
+	}
+
+	// The password is taken as typed, spaces and all; only the username is trimmed.
+	cfg.Username = get("APP_USERNAME")
+	cfg.Password = Secret{getenv("APP_PASSWORD")}
+	if (cfg.Username == "") != !cfg.Password.IsSet() {
+		errs = append(errs, errors.New("APP_USERNAME and APP_PASSWORD must be set together, or both left empty for no login"))
 	}
 
 	if len(errs) > 0 {

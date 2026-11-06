@@ -527,3 +527,29 @@ func TestTheLocationDimensionIsOneNamedLikeItElseTheFirstSavedItemsFirstOtherTag
 		t.Errorf("Type dimension = %q; want Type, unaffected", got)
 	}
 }
+
+func TestSessionKeyIsCreatedOnceAndOutlivesReopenAndReset(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := s.SessionKey(ctx)
+	if err != nil || len(first) != 32 {
+		t.Fatalf("key = %x, %v; want 32 bytes", first, err)
+	}
+	if err := s.Reset(ctx); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	again, err := s.SessionKey(ctx)
+	if err != nil || string(again) != string(first) {
+		t.Errorf("key after reset and reopen = %x, %v; want %x", again, err, first)
+	}
+}

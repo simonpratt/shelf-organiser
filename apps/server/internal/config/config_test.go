@@ -47,3 +47,39 @@ func TestAPIKeyNeverAppearsWhenConfigIsPrinted(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadNeedsUsernameAndPasswordTogether(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		env     map[string]string
+		enabled bool
+		wantErr bool
+	}{
+		{"neither", nil, false, false},
+		{"both", map[string]string{"APP_USERNAME": "simon", "APP_PASSWORD": " pass word "}, true, false},
+		{"username only", map[string]string{"APP_USERNAME": "simon"}, false, true},
+		{"password only", map[string]string{"APP_PASSWORD": "hunter2"}, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := Load(env(tc.env))
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v; want error %v", err, tc.wantErr)
+			}
+			if err != nil {
+				if !strings.Contains(err.Error(), "APP_USERNAME") || strings.Contains(err.Error(), "hunter2") {
+					t.Errorf("error %q should name APP_USERNAME and not show the password", err)
+				}
+				return
+			}
+			if cfg.AuthEnabled() != tc.enabled {
+				t.Errorf("AuthEnabled = %v; want %v", cfg.AuthEnabled(), tc.enabled)
+			}
+			if tc.enabled && cfg.Password.Reveal() != " pass word " {
+				t.Errorf("password = %q; want it untrimmed", cfg.Password.Reveal())
+			}
+			if strings.Contains(fmt.Sprintf("%+v", cfg), "pass word") {
+				t.Error("password leaked when config was printed")
+			}
+		})
+	}
+}
