@@ -14,7 +14,7 @@ A self-hosted app for cataloguing what's in your shed or back room, so you can s
     <td><img src="docs/screenshots/space.png" width="200" alt="Treemap of space by Location: Shed 62% and Back room 34%, with the bikes and the old couch filling most of each, and a small Untagged block"></td>
     <td><img src="docs/screenshots/items.png" width="200" alt="Item list ranked by total space, with tag chips on each item"></td>
     <td><img src="docs/screenshots/add.png" width="200" alt="Add item form with size presets, quantity and tag suggestions"></td>
-    <td><img src="docs/screenshots/tags.png" width="200" alt="Tag tree with Location and Type dimensions and item counts"></td>
+    <td><img src="docs/screenshots/tags.png" width="200" alt="Tag tree with Location and Type top-level tags and item counts"></td>
   </tr>
   <tr><td>Space</td><td>Items</td><td>Add item</td><td>Tags</td></tr>
 </table>
