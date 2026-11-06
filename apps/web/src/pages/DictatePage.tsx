@@ -119,8 +119,8 @@ function Dictation() {
     );
   }
 
-  const update = (key: number, form: ItemForm) =>
-    setDrafts((ds) => ds && ds.map((d) => (d.key === key ? { ...d, form, errors: {} } : d)));
+  const update = (key: number, change: (form: ItemForm) => ItemForm) =>
+    setDrafts((ds) => ds && ds.map((d) => (d.key === key ? { ...d, form: change(d.form), errors: {} } : d)));
   const remove = (key: number) => setDrafts((ds) => ds && ds.filter((d) => d.key !== key));
 
   return (
@@ -135,7 +135,7 @@ function Dictation() {
       ) : (
         drafts.map((d) => (
           <DraftCard key={d.key} form={d.form} errors={d.errors} existingTags={(tags.data ?? []).map((t) => t.path)}
-            onChange={(form) => update(d.key, form)} onRemove={() => remove(d.key)}
+            onChange={(change) => update(d.key, change)} onRemove={() => remove(d.key)}
             propose={(form) => proposeTags({ name: form.name, note: form.note, tags: form.tags })} />
         ))
       )}

@@ -17,7 +17,8 @@ import { TextField } from "./TextField";
 
 type Props = {
   form: ItemForm;
-  onChange: (form: ItemForm) => void;
+  /** Takes an update rather than a new form: one tap can change two fields. */
+  onChange: (update: (form: ItemForm) => ItemForm) => void;
   onRemove: () => void;
   errors: FormErrors;
   existingTags: TagPath[];
@@ -36,7 +37,7 @@ export function DraftCard({ form, onChange, onRemove, errors, existingTags, defa
     setHadErrors(hasErrors);
     if (hasErrors) setOpen(true);
   }
-  const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => onChange({ ...form, [key]: value });
+  const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => onChange((f) => ({ ...f, [key]: value }));
   const title = form.name.trim() || "Unnamed item";
 
   return (
@@ -63,7 +64,7 @@ export function DraftCard({ form, onChange, onRemove, errors, existingTags, defa
             existing={existingTags} />
           {propose && (
             <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags}
-              propose={() => propose(form)} onAdd={(p) => set("tags")(addTag(form.tags, p))} />
+              propose={() => propose(form)} onAdd={(p) => onChange((f) => ({ ...f, tags: addTag(f.tags, p) }))} />
           )}
         </>
       )}
