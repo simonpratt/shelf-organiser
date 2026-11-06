@@ -30,12 +30,21 @@ CI publishes `ghcr.io/simonpratt/shelf-organiser` for amd64 and arm64: `latest` 
 | `DATA_DIR` | `/data` | Directory holding `shelf.db` |
 | `PORT` | `8080` | Listen port |
 | `ANTHROPIC_API_KEY` | empty | Turns on dictation and tag proposals. Without it the app is typed entry and hand tagging only |
+| `APP_USERNAME`, `APP_PASSWORD` | empty | Set both to turn on the login page. Without them there is no login |
+
+For example, with a login:
+
+```sh
+docker run -d -p 8080:8080 -v shelf-data:/data \
+  -e APP_USERNAME=simon -e APP_PASSWORD='a long passphrase' \
+  ghcr.io/simonpratt/shelf-organiser
+```
 
 Test-only settings are in `.env.example`.
 
 ## Notes
 
-- There is no login: run it on a trusted LAN only.
+- The login is off unless `APP_USERNAME` and `APP_PASSWORD` are set; without it, run the app on a trusted LAN only. Logging in keeps the browser logged in for 90 days from its last use, across restarts; changing either variable logs every browser out. Serve it over HTTPS (a reverse proxy setting `X-Forwarded-Proto` is enough) so the password and cookie aren't sent in the clear.
 - Deleting a tag also deletes the tags inside it; the items stay, moving up to its parent tag. Renaming or moving a tag onto an existing one offers to merge them.
 - Speech is turned into text on the phone by a Whisper model the app serves itself (about 105 MB, downloaded on first use of Dictate and then cached); the audio never leaves the phone. Only the text, plus your tag paths, goes to Anthropic (`docs/adr/0003-speech-to-text-in-the-browser-with-whisper.md`).
 - Browsers only allow the microphone over HTTPS (or on `localhost`). Served over plain HTTP on the LAN, Dictate falls back to typing, or your keyboard's own microphone.

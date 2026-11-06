@@ -1,6 +1,6 @@
 # Shelf Organiser
 
-A self-hosted, single-user app for working out what takes up the space in a shed or back room: items are entered on a phone with a size and nested tags. A Go server with SQLite serves an embedded React client, in one Docker image on the LAN-only homelab. `SPEC.md` is the spec.
+A self-hosted, single-user app for working out what takes up the space in a shed or back room: items are entered on a phone with a size and nested tags. A Go server with SQLite serves an embedded React client, in one Docker image on the homelab, optionally behind a login. `SPEC.md` is the spec.
 
 ## Commands
 
@@ -26,9 +26,9 @@ Gotchas:
 
 - `apps/server/openapi/openapi.yaml`: the hand-written API spec, source of truth for both sides. `make generate` rewrites the committed `apps/server/internal/api/api.gen.go` and `apps/web/src/api/schema.gen.ts`; commit all three together.
 - `apps/server/cmd/shelf-organiser/`: `main.go` with the testable `run()`, and `main_test.go` app tests through it.
-- `apps/server/internal/`: `config` (env), `store` (SQLite, goose migrations in `store/migrations/`, all queries), `api` (handlers for the generated strict interface), `claude` (every Claude call: dictation drafts, tag proposals; and `claudefake/`), `web` (serves the embedded client).
-- `docs/adr/`: decisions: dictation via Claude (0001, its keyboard speech-to-text superseded by 0003), which tag proposals Claude makes (0002), and Whisper in the browser, with the model measurements (0003).
-- `apps/web/src/`: `pages/` arrange `components/`; logic lives in `items/`, `tags/`, `space/` (the breakdown, the hand-rolled squarify and the nested map layout `nest.ts`), `speech/` (the microphone and Whisper: `voice.ts` reducer, `useVoice`, `worker.ts`) and `session/` (sessionStorage) with `*.test.ts` beside it; `api/` holds the client and one TanStack Query hooks file per resource.
+- `apps/server/internal/`: `config` (env), `auth` (login, session cookie, the `/api/` guard), `store` (SQLite, goose migrations in `store/migrations/`, all queries), `api` (handlers for the generated strict interface), `claude` (every Claude call: dictation drafts, tag proposals; and `claudefake/`), `web` (serves the embedded client).
+- `docs/adr/`: decisions: dictation via Claude (0001, its keyboard speech-to-text superseded by 0003), which tag proposals Claude makes (0002), Whisper in the browser, with the model measurements (0003), and the login (0004).
+- `apps/web/src/`: `pages/` arrange `components/`; logic lives in `items/`, `tags/`, `space/` (the breakdown, the hand-rolled squarify and the nested map layout `nest.ts`), `speech/` (the microphone and Whisper: `voice.ts` reducer, `useVoice`, `worker.ts`) and `session/` (sessionStorage), `login/` (the login page's return path) with `*.test.ts` beside it; `api/` holds the client and one TanStack Query hooks file per resource.
 - `test/e2e/`: Playwright. Every spec imports `test` from `fixtures/test.ts` (resets the database before each test) and seeds through `fixtures/api.ts`.
 
 ## Conventions
@@ -49,7 +49,8 @@ Gotchas:
 - **Browser tests fake the transcriber:** `fixtures/test.ts` sets `window.shelfFakeTranscriber`, which "hears" `window.shelfFakeSaid` and holds the model at half-downloaded until that is set; recording itself is real, from Chromium's fake microphone. Only the `speech` project uses the real model.
 - **No test reaches the real Anthropic API.** Every layer uses `claude/claudefake`: `httptest` in Go tests, and in e2e the server mounts it at `/api/test/anthropic/` and Playwright points `ANTHROPIC_BASE_URL` there. Its canned answers are described in its package comment; `FAIL` in a transcript or item name makes it 500.
 - **Test-only routes** (`POST /api/test/reset`, the fake above) exist only with `APP_TEST_MODE=1`; `main_test.go` proves they 404 otherwise. Every env var is in `.env.example` (`deploy_test.go` enforces it).
-- **Scope:** one user on a LAN, no auth, nothing hosting- or ingress-related.
+- **The login is optional** (ADR 0004): with `APP_USERNAME` and `APP_PASSWORD` set (both or neither), every `/api/` path but `/api/session`, `/api/login`, `/api/logout` (and `/api/test/` in test mode) answers 401 without the signed session cookie, and the client opens `/login?next=…` on any 401. `/healthz`, the client and `/models/` stay open. Without them there is no login, as in dev and most e2e specs; `ui/login.spec.ts` runs against a second e2e server (:8182) with one set up.
+- **Scope:** one user, one account, nothing hosting- or ingress-related.
 
 ## Done means
 
