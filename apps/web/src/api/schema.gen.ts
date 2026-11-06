@@ -75,7 +75,10 @@ export interface paths {
          */
         put: operations["updateTag"];
         post?: never;
-        /** Delete a tag and all its descendants; items keep existing but lose those tags */
+        /**
+         * Delete a tag and all its descendants; items keep existing and move up to the tag's parent, if it has one
+         * @description An item tagged inside the deleted subtree gets the parent tag instead, unless it already has another tag inside the parent. Under a top-level tag, items just lose those tags.
+         */
         delete: operations["deleteTag"];
         options?: never;
         head?: never;

@@ -211,7 +211,7 @@ type ServerInterface interface {
 	// EnsureTag Return the tag at a path, creating it and any missing ancestors
 	// (POST /api/tags)
 	EnsureTag(w http.ResponseWriter, r *http.Request)
-	// DeleteTag Delete a tag and all its descendants; items keep existing but lose those tags
+	// DeleteTag Delete a tag and all its descendants; items keep existing and move up to the tag's parent, if it has one
 	// (DELETE /api/tags/{id})
 	DeleteTag(w http.ResponseWriter, r *http.Request, id ID)
 	// UpdateTag Rename a tag and/or move it under another parent (null for top level)
@@ -1249,7 +1249,7 @@ type StrictServerInterface interface {
 	// EnsureTag Return the tag at a path, creating it and any missing ancestors
 	// (POST /api/tags)
 	EnsureTag(ctx context.Context, request EnsureTagRequestObject) (EnsureTagResponseObject, error)
-	// DeleteTag Delete a tag and all its descendants; items keep existing but lose those tags
+	// DeleteTag Delete a tag and all its descendants; items keep existing and move up to the tag's parent, if it has one
 	// (DELETE /api/tags/{id})
 	DeleteTag(ctx context.Context, request DeleteTagRequestObject) (DeleteTagResponseObject, error)
 	// UpdateTag Rename a tag and/or move it under another parent (null for top level)

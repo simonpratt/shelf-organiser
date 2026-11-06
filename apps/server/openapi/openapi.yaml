@@ -141,7 +141,11 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
     delete:
       operationId: deleteTag
-      summary: Delete a tag and all its descendants; items keep existing but lose those tags
+      summary: Delete a tag and all its descendants; items keep existing and move up to the tag's parent, if it has one
+      description: >
+        An item tagged inside the deleted subtree gets the parent tag instead,
+        unless it already has another tag inside the parent. Under a top-level
+        tag, items just lose those tags.
       responses:
         "204": { description: Deleted }
         "404": { $ref: "#/components/responses/NotFound" }

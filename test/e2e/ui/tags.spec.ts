@@ -48,3 +48,16 @@ test("renaming a tag to a sibling's name merges them after confirming", async ({
   const tags = Object.fromEntries((await listItems(request)).map((i) => [i.name, i.tags.map((t) => t.path.join("/"))]));
   expect(tags).toEqual({ Vice: ["Location/Shed/Left shelf"], Saw: ["Location/Shed/Left shelf"] });
 });
+
+test("deleting a nested tag moves its items up to the parent tag", async ({ page, request }) => {
+  await createItem(request, { name: "Drill", litres: 10, tags: [["Type", "Tools", "Power tools"]] });
+  await page.goto("/tags");
+  await page.getByRole("button", { name: /^Power tools/ }).click();
+  await page.getByRole("dialog", { name: "Edit “Type › Tools › Power tools”" }).getByRole("button", { name: "Delete" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete “Power tools”?" });
+  await expect(confirm).toContainText("1 item moves up to “Tools”.");
+  await confirm.getByRole("button", { name: "Delete tag" }).click();
+  await expect(page.getByRole("button", { name: /^Power tools/ })).toHaveCount(0);
+  const [drill] = await listItems(request);
+  expect(drill?.tags.map((t) => t.path.join("/"))).toEqual(["Type/Tools"]);
+});

@@ -268,18 +268,18 @@ func TestMovingATagOntoASameNamedTagMerges(t *testing.T) {
 	}
 }
 
-func TestDeleteTagRemovesSubtreeButKeepsItems(t *testing.T) {
+func TestDeletingATopLevelTagRemovesSubtreeButKeepsItems(t *testing.T) {
 	ctx := context.Background()
 	s := open(t)
 	item, _ := s.CreateItem(ctx, ItemInput{Name: "Tent", Litres: 30, Quantity: 1,
 		Tags: [][]string{{"Type", "Camping", "Tents"}, {"Location", "Shed"}}})
-	camping, _ := s.EnsureTag(ctx, []string{"Type", "Camping"})
+	camping, _ := s.EnsureTag(ctx, []string{"Type"})
 
 	if err := s.DeleteTag(ctx, camping.ID); err != nil {
 		t.Fatal(err)
 	}
 	tags, _ := s.ListTags(ctx)
-	if got, want := paths(tags), []string{"Location", "Location/Shed", "Type"}; !slices.Equal(got, want) {
+	if got, want := paths(tags), []string{"Location", "Location/Shed"}; !slices.Equal(got, want) {
 		t.Errorf("tags = %v; want %v", got, want)
 	}
 	item, err := s.GetItem(ctx, item.ID)
@@ -291,6 +291,37 @@ func TestDeleteTagRemovesSubtreeButKeepsItems(t *testing.T) {
 	}
 	if err := s.DeleteTag(ctx, camping.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("deleting again: err = %v; want ErrNotFound", err)
+	}
+}
+
+func TestDeletingANestedTagMovesItsItemsUpToItsParent(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	drill, _ := s.CreateItem(ctx, ItemInput{Name: "Drill", Litres: 10, Quantity: 1,
+		Tags: [][]string{{"Type", "Tools", "Power tools", "Cordless"}, {"Location", "Shed"}}})
+	sander, _ := s.CreateItem(ctx, ItemInput{Name: "Sander", Litres: 5, Quantity: 1,
+		Tags: [][]string{{"Type", "Tools", "Power tools"}, {"Type", "Tools", "Sanding"}}})
+	power, _ := s.EnsureTag(ctx, []string{"Type", "Tools", "Power tools"})
+
+	if err := s.DeleteTag(ctx, power.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		id   int64
+		want []string
+	}{
+		{drill.ID, []string{"Location/Shed", "Type/Tools"}},
+		// It still has a tag inside Tools, so it doesn't gain Tools as well.
+		{sander.ID, []string{"Type/Tools/Sanding"}},
+	} {
+		it, _ := s.GetItem(ctx, c.id)
+		if got := refPaths(it.Tags); !slices.Equal(got, c.want) {
+			t.Errorf("%s tags = %v; want %v", it.Name, got, c.want)
+		}
+	}
+	tags, _ := s.ListTags(ctx)
+	if got, want := paths(tags), []string{"Location", "Location/Shed", "Type", "Type/Tools", "Type/Tools/Sanding"}; !slices.Equal(got, want) {
+		t.Errorf("tags = %v; want %v", got, want)
 	}
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clashingSibling, mergeSummary, tagsInside } from "./edit";
+import { clashingSibling, deleteSummary, mergeSummary, tagsInside } from "./edit";
 
 const tag = (id: number, path: string[], parentId: number | null, itemCount = 0) =>
   ({ id, name: path[path.length - 1]!, parentId, path, itemCount });
@@ -38,5 +38,21 @@ describe("mergeSummary", () => {
   it("says an empty tag is just deleted", () => {
     expect(mergeSummary(tag(9, ["Shed"], null), tree[1]!, 0)).toBe(
       "“Location › Shed” already exists. “Shed” has no items or tags inside it, so it is just deleted. This can't be undone.");
+  });
+});
+
+describe("deleteSummary", () => {
+  it("moves a nested tag's items up to its parent", () => {
+    expect(deleteSummary(tree[2]!, 1, tree[1]!)).toBe(
+      "This also deletes the tag inside it. 5 items move up to “Shed”. This can't be undone.");
+    expect(deleteSummary(tree[4]!, 0, tree[1]!)).toBe("1 item moves up to “Shed”. This can't be undone.");
+  });
+  it("has a top-level tag's items lose it, with matching grammar", () => {
+    expect(deleteSummary(tag(1, ["Type"], null, 1), 0, undefined)).toBe("1 item loses this tag but stays. This can't be undone.");
+    expect(deleteSummary(tree[0]!, 4, undefined)).toBe(
+      "This also deletes the 4 tags inside it. 6 items lose these tags but stay. This can't be undone.");
+  });
+  it("says when no items have it", () => {
+    expect(deleteSummary(tag(1, ["Type"], null), 0, undefined)).toBe("No items have this tag. This can't be undone.");
   });
 });

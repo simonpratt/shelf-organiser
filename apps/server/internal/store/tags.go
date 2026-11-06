@@ -368,16 +368,65 @@ func mergeInto(ctx context.Context, tx *sql.Tx, src, dst int64) error {
 }
 
 // DeleteTag deletes tag id and all its descendants. Items tagged with any of
-// them keep existing and simply lose those tags (both via ON DELETE CASCADE).
+// them keep existing; under a nested tag they move up to its parent, so they
+// stay in the dimension (unless they have another tag inside the parent
+// already), while under a top-level tag they just lose those tags. All in one
+// transaction.
 func (s *Store) DeleteTag(ctx context.Context, id int64) error {
-	res, err := s.db.ExecContext(ctx, "DELETE FROM tags WHERE id = ?", id)
+	return s.inTx(ctx, func(tx *sql.Tx) error {
+		tags, err := loadTags(ctx, tx)
+		if err != nil {
+			return err
+		}
+		tag, ok := tags[id]
+		if !ok {
+			return ErrNotFound
+		}
+		if tag.ParentID != nil {
+			if err := moveItemsUp(ctx, tx, tags, id, *tag.ParentID); err != nil {
+				return err
+			}
+		}
+		// ON DELETE CASCADE takes the subtree and its item links.
+		_, err = tx.ExecContext(ctx, "DELETE FROM tags WHERE id = ?", id)
+		return err
+	})
+}
+
+// moveItemsUp tags parent onto every item tagged inside id's subtree that has
+// no other tag inside parent's.
+func moveItemsUp(ctx context.Context, tx *sql.Tx, tags map[int64]*Tag, id, parent int64) error {
+	links, err := itemTagLinks(ctx, tx)
 	if err != nil {
 		return err
 	}
-	if n, err := res.RowsAffected(); err != nil {
-		return err
-	} else if n == 0 {
-		return ErrNotFound
+	within := func(tagID, top int64) bool {
+		for t := tags[tagID]; t != nil; {
+			if t.ID == top {
+				return true
+			}
+			if t.ParentID == nil {
+				return false
+			}
+			t = tags[*t.ParentID]
+		}
+		return false
+	}
+	for item, tagIDs := range links {
+		losing, kept := false, false
+		for _, t := range tagIDs {
+			switch {
+			case within(t, id):
+				losing = true
+			case within(t, parent):
+				kept = true
+			}
+		}
+		if losing && !kept {
+			if _, err := tx.ExecContext(ctx, "INSERT INTO item_tags (item_id, tag_id) VALUES (?, ?)", item, parent); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

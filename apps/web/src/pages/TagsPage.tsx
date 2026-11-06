@@ -1,5 +1,6 @@
 // The tag tree: add tags by path, and rename, move or delete them. Deleting a
-// tag deletes everything below it; items stay, they just lose those tags.
+// tag deletes everything below it; items stay, moving up to its parent tag
+// (or, for a top-level tag, just losing those tags).
 // Renaming or moving a tag onto one that already exists offers to merge them.
 import { useState, type FormEvent } from "react";
 import type { Tag } from "../api/client";
@@ -17,7 +18,7 @@ import { Skeleton } from "../components/Skeleton";
 import { TagTreeRow } from "../components/TagTreeRow";
 import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
-import { clashingSibling, mergeSummary, tagsInside } from "../tags/edit";
+import { clashingSibling, deleteSummary, mergeSummary, tagsInside } from "../tags/edit";
 import { formatPath, parseTagPath, subtreeIds } from "../tags/path";
 
 export function TagsPage() {
@@ -137,13 +138,7 @@ function TagEditor({ tag, all, onClose }: { tag: Tag; all: Tag[]; onClose: () =>
       )}
       <ConfirmDialog open={confirming === "delete"} title={`Delete “${tag.name}”?`} confirmLabel="Delete tag" busy={remove.isPending}
         error={remove.error?.message} onConfirm={onDelete} onCancel={() => setConfirming(null)}>
-        {descendants > 0
-          ? `This also deletes the ${descendants === 1 ? "tag" : `${descendants} tags`} inside it. `
-          : ""}
-        {tag.itemCount === 0
-          ? "No items have " + (descendants > 0 ? "these tags" : "this tag") + "."
-          : `${tag.itemCount === 1 ? "1 item loses" : `${tag.itemCount} items lose`} ${descendants > 0 ? "these tags" : "this tag"} but stays.`}
-        {" "}This can't be undone.
+        {deleteSummary(tag, descendants, all.find((t) => t.id === tag.parentId))}
       </ConfirmDialog>
     </>
   );
