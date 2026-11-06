@@ -1,9 +1,11 @@
 // Tag field for an item: chips for the chosen tags, and a combobox that
 // suggests existing tags or creates a new path typed as "Type/Camping/Tents".
-// Domain decision (T1): users create nested tags inline while tagging.
+// Domain decision (T1): users create nested tags inline while tagging. With
+// the Location dimension given, a new name typed after removing a location
+// tag ("Shelf 3" after "Location › Shed › Shelf 1") is offered there first.
 import { useId, useState, type KeyboardEvent } from "react";
 import { cx } from "../cx";
-import { addTag } from "../items/form";
+import { addTag, hasTagIn } from "../items/form";
 import { formatPath, suggestTags, type Suggestion, type TagPath } from "../tags/path";
 import { isNewPath } from "../tags/proposals";
 import { PlusIcon, TagIcon } from "./icons";
@@ -18,13 +20,22 @@ type Props = {
   /** Every existing tag path, for suggestions and to mark chosen tags New. */
   existing: TagPath[];
   label?: string;
+  /** The Location dimension, if known. */
+  location?: string | null;
 };
 
-export function TagInput({ value, onChange, draft, onDraftChange, existing, label = "Tags" }: Props) {
+export function TagInput({ value, onChange, draft, onDraftChange, existing, label = "Tags", location = null }: Props) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const suggestions = suggestTags(existing, draft, value);
+  // Where the last location tag removed was, e.g. "Location › Shed" for its Shelf 1.
+  const [lastPlace, setLastPlace] = useState<TagPath>([]);
+  const near = value.some((t) => hasTagIn([t], location)) ? [] : lastPlace;
+  const suggestions = suggestTags(existing, draft, value, near);
+  const remove = (p: TagPath) => {
+    if (hasTagIn([p], location) && p.length > 1) setLastPlace(p.slice(0, -1));
+    onChange(value.filter((t) => t !== p));
+  };
   const shown = open && suggestions.length > 0;
 
   const pick = (s: Suggestion) => {
@@ -46,7 +57,7 @@ export function TagInput({ value, onChange, draft, onDraftChange, existing, labe
     } else if (e.key === "Escape") {
       setOpen(false);
     } else if (e.key === "Backspace" && draft === "" && value.length > 0) {
-      onChange(value.slice(0, -1));
+      remove(value[value.length - 1]!);
     }
   };
 
@@ -57,7 +68,7 @@ export function TagInput({ value, onChange, draft, onDraftChange, existing, labe
         <ul aria-label={`Chosen ${label.toLowerCase()}`} className="flex flex-wrap gap-2 pb-1">
           {value.map((p) => (
             <li key={formatPath(p)} className="max-w-full">
-              <TagChip path={p} isNew={isNewPath(p, existing)} onRemove={() => onChange(value.filter((t) => t !== p))} />
+              <TagChip path={p} isNew={isNewPath(p, existing)} onRemove={() => remove(p)} />
             </li>
           ))}
         </ul>

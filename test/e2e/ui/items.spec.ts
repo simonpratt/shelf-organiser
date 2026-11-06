@@ -77,6 +77,19 @@ test("returns to the searched list or the space map after a save or delete", asy
   await expect(page.getByRole("heading", { name: "Space" })).toBeVisible();
 });
 
+test("offers a new shelf's name next to the shelf just removed", async ({ page, request }) => {
+  await ensureTag(request, ["Location", "Shed", "Shelf 1"]);
+  await page.goto("/items/new");
+  const tags = page.getByRole("combobox", { name: "Tags" });
+  await tags.fill("shelf 1");
+  await tags.press("Enter");
+  await page.getByRole("button", { name: "Remove tag Location › Shed › Shelf 1" }).click();
+  await tags.fill("Shelf 3");
+  await expect(page.getByRole("option")).toHaveText(["Create “Location › Shed › Shelf 3”", "Create “Shelf 3”"]);
+  await tags.press("Enter");
+  await expect(page.getByRole("list", { name: "Chosen tags" })).toHaveText("Location › Shed › Shelf 3New");
+});
+
 test("loads the item list @smoke", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Items" })).toBeVisible();

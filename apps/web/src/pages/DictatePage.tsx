@@ -78,7 +78,7 @@ function Dictation() {
   const existingTags = (tags.data ?? []).map((t) => t.path);
   const sharedField = (
     <TagInput label="Tags for every item" value={shared} onChange={setShared} draft={sharedDraft}
-      onDraftChange={setSharedDraft} existing={existingTags} />
+      onDraftChange={setSharedDraft} existing={existingTags} location={locationDimension(tags.data)} />
   );
 
   const onRead = async (e: FormEvent) => {

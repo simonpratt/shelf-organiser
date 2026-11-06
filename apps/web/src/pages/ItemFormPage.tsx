@@ -138,7 +138,7 @@ function Editor({ item }: { item?: Item }) {
       <SizePicker litres={form.litres} onChange={set("litres")} error={errors.litres} />
       <QuantityStepper value={form.quantity} onChange={set("quantity")} error={errors.quantity} />
       <TagInput value={form.tags} onChange={set("tags")} draft={form.tagDraft} onDraftChange={set("tagDraft")}
-        existing={(tags.data ?? []).map((t) => t.path)} />
+        existing={(tags.data ?? []).map((t) => t.path)} location={location} />
       {claude.data?.enabled && (
         <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags} typeDimension={dimension}
           propose={() => proposeTags({ name: form.name, note: form.note, tags: form.tags })}

@@ -65,6 +65,17 @@ describe("suggestTags", () => {
     ]);
   });
 
+  it("offers to create a new name next to where the user just was, before the literal name", () => {
+    const near = ["Location", "Shed"];
+    expect(suggestTags(existing, "shelf 3", [], near)).toEqual([
+      { path: ["Location", "Shed", "shelf 3"], isNew: true },
+      { path: ["shelf 3"], isNew: true },
+    ]);
+    // Not when the name matches a tag, or is itself a path.
+    expect(suggestTags(existing, "tents", [], near).map((s) => s.path)).toEqual([["Type", "Camping", "Tents"], ["tents"]]);
+    expect(suggestTags(existing, "Plan/Sell", [], near)).toEqual([{ path: ["Plan", "Sell"], isNew: true }]);
+  });
+
   it("suggests nothing for blank text", () => {
     expect(suggestTags(existing, " / ", [])).toEqual([]);
   });

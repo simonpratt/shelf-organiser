@@ -46,14 +46,17 @@ export type Suggestion = { path: TagPath; isNew: boolean };
  * Options for the tag field as the user types: existing tags whose path
  * contains the text; then, when the first name typed is a nested tag ("Shed"
  * in "Shed/Top shelf") and no top-level tag has it, options to create the
- * rest inside it ("Location › Shed › Top shelf"); then, unless the text names
- * an existing tag, an option to create exactly what was typed. Tags already
- * chosen are left out.
+ * rest inside it ("Location › Shed › Top shelf"); likewise, when a single
+ * name matches no tag at all and near is given (where the user just was, such
+ * as "Location › Shed"), an option to create it there; then, unless the text
+ * names an existing tag, an option to create exactly what was typed. Tags
+ * already chosen are left out.
  */
 export function suggestTags(
   existing: readonly TagPath[],
   text: string,
   chosen: readonly TagPath[],
+  near: TagPath = [],
   limit = 6,
 ): Suggestion[] {
   const typed = parseTagPath(text);
@@ -68,12 +71,13 @@ export function suggestTags(
     .map((path) => ({ path, isNew: false }));
   const [first, ...rest] = typed;
   const isFirst = (name: string | undefined) => name?.toLowerCase() === first!.toLowerCase();
+  const offer = (full: TagPath) => {
+    if (!existing.some((p) => samePath(p, full)) && !isChosen(full)) matches.push({ path: full, isNew: true });
+  };
   if (rest.length > 0 && !existing.some((p) => p.length === 1 && isFirst(p[0]))) {
-    for (const anchor of existing.filter((p) => p.length > 1 && isFirst(p[p.length - 1])).slice(0, 2)) {
-      const full = [...anchor, ...rest];
-      if (!existing.some((p) => samePath(p, full)) && !isChosen(full)) matches.push({ path: full, isNew: true });
-    }
+    for (const anchor of existing.filter((p) => p.length > 1 && isFirst(p[p.length - 1])).slice(0, 2)) offer([...anchor, ...rest]);
   }
+  if (rest.length === 0 && near.length > 0 && matches.length === 0) offer([...near, first!]);
   const exists = existing.some((p) => samePath(p, typed));
   if (!exists && !isChosen(typed)) matches.push({ path: typed, isNew: true });
   return matches;
