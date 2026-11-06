@@ -210,6 +210,8 @@ export interface components {
              * @description Total space, in litres, of the items counted in itemCount
              */
             totalSpace: number;
+            /** @description True on at most one top-level tag, the Type dimension: the one Claude first took as it, else one named Type, Kind or Category */
+            isTypeDimension: boolean;
         };
         TagRef: {
             /** Format: int64 */

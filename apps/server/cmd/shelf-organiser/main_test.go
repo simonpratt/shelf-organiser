@@ -276,7 +276,14 @@ func TestOrganiseProposesTypeTagsThatApplyInOneGo(t *testing.T) {
 		t.Errorf("tags = %s; want the failed batch to have created nothing", tags)
 	}
 
+	// Type now exists, so it is the Type dimension for every client and for Claude.
+	if _, tags := do(t, "GET", base+"/api/tags", ""); !strings.Contains(tags, `"isTypeDimension":true,"itemCount":2,"name":"Type"`) {
+		t.Errorf("tags = %s; want Type marked as the Type dimension", tags)
+	}
 	code, body = do(t, "POST", base+"/api/tag-proposals", `{"name":"Cordless drill","tags":[["Location","Shed"]]}`)
+	if reqs := claude.Config.Handler.(*claudefake.Fake).Requests(); !strings.Contains(fmt.Sprint(reqs[len(reqs)-1].Body), `what things are is "Type"`) {
+		t.Errorf("the proposal request didn't name the Type dimension")
+	}
 	if want := `{"dimension":"Type","tags":[{"isNew":true,"path":["Type","Tools","Power tools"]}]}`; code != 200 || strings.TrimSpace(body) != want {
 		t.Errorf("tag proposals = %d %s; want %s", code, body, want)
 	}

@@ -65,13 +65,34 @@ test("suggests tags on the item form, adds only the one tapped, and carries only
   const suggested = page.getByRole("list", { name: "Suggested tags" });
   await expect(suggested.getByRole("button")).toHaveText(["Type › Camping", "Type › FurnitureNew"]);
 
+  // With a Type tag chosen, Suggest gets out of the way; removing it brings the rest back.
   await suggested.getByRole("button", { name: "Add tag Type › Furniture (new)" }).click();
   await expect(page.getByRole("list", { name: "Chosen tags" })).toContainText("Type › FurnitureNew");
-  await expect(suggested.getByRole("button")).toHaveText(["Type › Camping"]);
+  await expect(suggested).toBeHidden();
+  await page.getByRole("button", { name: "Remove tag Type › Furniture" }).click();
+  await expect(suggested.getByRole("button")).toHaveText(["Type › Camping", "Type › FurnitureNew"]);
+  await suggested.getByRole("button", { name: "Add tag Type › Furniture (new)" }).click();
 
   // The next item is likely on the same shelf, but not another chair.
   await page.getByRole("button", { name: "Save and add another" }).click();
   await expect(page.getByText("Saved “Camping chair”")).toBeVisible();
   expect(await tagsOf(request)).toEqual({ "Camping chair": ["Location/Shed", "Type/Furniture"] });
   await expect(page.getByRole("list", { name: "Chosen tags" }).getByRole("listitem")).toHaveText(["Location › Shed"]);
+});
+
+test("knows the Type dimension from page load, so a fresh tab carries only the location", async ({ page, request }) => {
+  await ensureTag(request, ["Kind", "Garden"]);
+  await page.goto("/items/new");
+  await page.getByLabel("Name").fill("Rake");
+  await page.getByRole("radio", { name: /Crate/ }).click();
+  for (const path of ["Location/Shed", "Kind/Garden"]) {
+    await page.getByRole("combobox", { name: "Tags" }).fill(path);
+    await page.getByRole("combobox", { name: "Tags" }).press("Enter");
+  }
+  // The item has a Kind tag, so there is nothing for Suggest to do.
+  await expect(page.getByRole("button", { name: "Suggest tags" })).toBeHidden();
+  await page.getByRole("button", { name: "Save and add another" }).click();
+  await expect(page.getByText("Saved “Rake”")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Chosen tags" }).getByRole("listitem")).toHaveText(["Location › Shed"]);
+  await expect(page.getByRole("button", { name: "Suggest tags" })).toBeVisible();
 });

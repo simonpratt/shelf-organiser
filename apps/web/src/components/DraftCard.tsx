@@ -25,10 +25,12 @@ type Props = {
   /** Starts open, e.g. to show the full fields in the catalogue. */
   defaultOpen?: boolean;
   /** Asks Claude for proposed tags (T5); omitted, there is no Suggest tags. */
-  propose?: (form: ItemForm) => Promise<ProposedTag[]>;
+  propose?: (form: ItemForm) => Promise<{ dimension: string; tags: ProposedTag[] }>;
+  /** The Type dimension, when the tag tree has one. */
+  typeDimension?: string | null;
 };
 
-export function DraftCard({ form, onChange, onRemove, errors, existingTags, defaultOpen = false, propose }: Props) {
+export function DraftCard({ form, onChange, onRemove, errors, existingTags, defaultOpen = false, propose, typeDimension = null }: Props) {
   const hasErrors = Object.values(errors).some(Boolean);
   const [open, setOpen] = useState(defaultOpen || hasErrors);
   // Open when a save attempt finds a problem; stay open while it's fixed.
@@ -63,7 +65,7 @@ export function DraftCard({ form, onChange, onRemove, errors, existingTags, defa
           <TagInput value={form.tags} onChange={set("tags")} draft={form.tagDraft} onDraftChange={set("tagDraft")}
             existing={existingTags} />
           {propose && (
-            <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags}
+            <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags} typeDimension={typeDimension}
               propose={() => propose(form)} onAdd={(p) => onChange((f) => ({ ...f, tags: addTag(f.tags, p) }))} />
           )}
         </>

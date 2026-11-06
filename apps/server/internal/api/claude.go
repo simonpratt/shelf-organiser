@@ -31,16 +31,36 @@ func itemsToTag(items []store.Item) []claude.ItemToTag {
 	return out
 }
 
-func (h *handlers) tagTree(ctx context.Context) ([][]string, error) {
+// tagAsk is a request for proposals over the whole tag tree, in the Type
+// dimension when one is known.
+func (h *handlers) tagAsk(ctx context.Context, items []claude.ItemToTag, perItem, maxItems int) (claude.TagAsk, error) {
 	tags, err := h.store.ListTags(ctx)
 	if err != nil {
-		return nil, err
+		return claude.TagAsk{}, err
 	}
-	paths := make([][]string, len(tags))
+	ask := claude.TagAsk{Items: items, PerItem: perItem, MaxItems: maxItems, Tree: make([][]string, len(tags))}
 	for i, t := range tags {
-		paths[i] = t.Path
+		ask.Tree[i] = t.Path
+		if t.TypeDimension {
+			ask.Dimension = t.Name
+		}
 	}
-	return paths, nil
+	return ask, nil
+}
+
+// proposeTags asks Claude and remembers the dimension it took as the Type
+// dimension, so every later proposal and every client agrees on it.
+func (h *handlers) proposeTags(ctx context.Context, ask claude.TagAsk) (claude.Proposals, error) {
+	p, err := h.claude.ProposeTags(ctx, ask)
+	if err != nil {
+		return p, err
+	}
+	if ask.Dimension == "" {
+		if err := h.store.RememberTypeDimension(ctx, p.Dimension); err != nil {
+			return p, err
+		}
+	}
+	return p, nil
 }
 
 func toAPIProposed(tags []claude.ProposedTag) []ProposedTag {
@@ -73,11 +93,11 @@ func (h *handlers) ProposeTags(ctx context.Context, req ProposeTagsRequestObject
 	case utf8.RuneCountInString(it.Name) > 200 || utf8.RuneCountInString(it.Note) > 2000:
 		return ProposeTags400JSONResponse{BadRequestJSONResponse{Error: "the name or note is too long"}}, nil
 	}
-	tree, err := h.tagTree(ctx)
+	ask, err := h.tagAsk(ctx, []claude.ItemToTag{it}, 3, 1)
 	if err != nil {
 		return nil, err
 	}
-	p, err := h.claude.ProposeTags(ctx, claude.TagAsk{Items: []claude.ItemToTag{it}, Tree: tree, PerItem: 3, MaxItems: 1})
+	p, err := h.proposeTags(ctx, ask)
 	if err != nil {
 		h.logger.Error("proposing tags", "err", err)
 		return ProposeTags502JSONResponse{Error: claudeFailure(err, "pick tags")}, nil
@@ -100,7 +120,7 @@ func (h *handlers) Organise(ctx context.Context, _ OrganiseRequestObject) (Organ
 	if err != nil {
 		return nil, err
 	}
-	tree, err := h.tagTree(ctx)
+	ask, err := h.tagAsk(ctx, itemsToTag(items), 1, organiseBatch)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +131,7 @@ func (h *handlers) Organise(ctx context.Context, _ OrganiseRequestObject) (Organ
 	if len(items) == 0 {
 		return res, nil
 	}
-	p, err := h.claude.ProposeTags(ctx, claude.TagAsk{Items: itemsToTag(items), Tree: tree, PerItem: 1, MaxItems: organiseBatch})
+	p, err := h.proposeTags(ctx, ask)
 	if err != nil {
 		h.logger.Error("organising", "err", err)
 		return Organise502JSONResponse{Error: claudeFailure(err, "tag them")}, nil

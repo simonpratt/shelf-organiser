@@ -22,7 +22,7 @@ import { useToast } from "../components/Toast";
 import { fromDraft, saveInOrder, toInputs } from "../items/drafts";
 import type { FormErrors, ItemForm } from "../items/form";
 import { readSession, writeSession } from "../session/store";
-import { addTag } from "../items/form";
+import { addTag, typeDimension } from "../items/form";
 import { parseTagPath, type TagPath } from "../tags/path";
 
 /** What the Add form passes on: its tags other than the Type dimension's. */
@@ -155,7 +155,7 @@ function Dictation() {
         drafts.map((d) => (
           <DraftCard key={d.key} form={d.form} errors={d.errors} existingTags={existingTags}
             onChange={(change) => update(d.key, change)} onRemove={() => remove(d.key)}
-            propose={async (form) => (await proposeTags({ name: form.name, note: form.note, tags: form.tags })).tags} />
+            typeDimension={typeDimension(tags.data)} propose={(form) => proposeTags({ name: form.name, note: form.note, tags: form.tags })} />
         ))
       )}
       {saveError && <Banner>{saveError}</Banner>}

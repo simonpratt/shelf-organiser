@@ -72,6 +72,9 @@ type ProposedTag struct {
 type Tag struct {
 	Id int64 `json:"id"`
 
+	// IsTypeDimension True on at most one top-level tag, the Type dimension: the one Claude first took as it, else one named Type, Kind or Category
+	IsTypeDimension bool `json:"isTypeDimension"`
+
 	// ItemCount Items tagged with this tag or any tag inside it, each counted once
 	ItemCount int    `json:"itemCount"`
 	Name      string `json:"name"`

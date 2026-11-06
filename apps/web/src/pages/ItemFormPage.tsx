@@ -2,13 +2,14 @@
 // or litres, quantity, tags with inline path creation, note. Deleting offers
 // Undo rather than a confirmation, since it is cheap to reverse. T2: when
 // dictation is set up, adding offers it first. T5: Claude can suggest tags.
+import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router";
 import { useGoBack } from "../back";
-import type { Item } from "../api/client";
+import type { Item, Tag } from "../api/client";
 import { proposeTags, useClaude } from "../api/claude";
 import { useCreateItem, useCreateItemDetached, useDeleteItem, useItems, useUpdateItem } from "../api/items";
-import { useTags } from "../api/tags";
+import { tagKeys, useTags } from "../api/tags";
 import { ActionBar } from "../components/ActionBar";
 import { AppShell } from "../components/AppShell";
 import { Banner } from "../components/Banner";
@@ -23,12 +24,8 @@ import { TagInput } from "../components/TagInput";
 import { TagProposals } from "../components/TagProposals";
 import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
-import { addTag, carriedTags, emptyForm, fromItem, toInput, type FormErrors, type ItemForm } from "../items/form";
-import { readSession, writeSession } from "../session/store";
+import { addTag, carriedTags, emptyForm, fromItem, toInput, typeDimension, type FormErrors, type ItemForm } from "../items/form";
 import type { DictateState } from "./DictatePage";
-
-// The top-level tag Claude last took as the Type dimension, kept for the tab.
-const TYPE_DIMENSION = "typeDimension";
 
 export function ItemFormPage() {
   const { id } = useParams();
@@ -65,7 +62,8 @@ function Editor({ item }: { item?: Item }) {
   const [errors, setErrors] = useState<FormErrors>({});
   const nameRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"save" | "another">("save");
-  const [typeDimension, setTypeDimension] = useState(() => readSession<string | null>(TYPE_DIMENSION, null));
+  const qc = useQueryClient();
+  const dimension = typeDimension(tags.data);
   const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     // A fixed field drops its error straight away rather than on the next save.
@@ -83,7 +81,8 @@ function Editor({ item }: { item?: Item }) {
     try {
       const saved = await save.mutateAsync(input);
       if (another) {
-        setForm(emptyForm(carriedTags(input.tags, typeDimension)));
+        // The save has refreshed the tags, which may have just started a Type dimension.
+        setForm(emptyForm(carriedTags(input.tags, typeDimension(qc.getQueryData<Tag[]>(tagKeys.all)))));
         toast({ message: `Saved “${saved.name}”. Add the next one.` });
         nameRef.current?.focus();
       } else {
@@ -128,7 +127,7 @@ function Editor({ item }: { item?: Item }) {
         actions={item && <Button variant="danger" busy={remove.isPending} disabled={busy} onClick={onDelete}>Delete</Button>} />
       {/* Hidden, not disabled, without an API key: typed entry is the whole app then. */}
       {!item && claude.data?.enabled && (
-        <Button to="/items/dictate" state={{ tags: carriedTags(form.tags, typeDimension) } satisfies DictateState}
+        <Button to="/items/dictate" state={{ tags: carriedTags(form.tags, dimension) } satisfies DictateState}
           block size="lg" icon={<MicIcon />}>Dictate items</Button>
       )}
       <TextField ref={nameRef} label="Name" value={form.name} onChange={set("name")} error={errors.name}
@@ -138,13 +137,8 @@ function Editor({ item }: { item?: Item }) {
       <TagInput value={form.tags} onChange={set("tags")} draft={form.tagDraft} onDraftChange={set("tagDraft")}
         existing={(tags.data ?? []).map((t) => t.path)} />
       {claude.data?.enabled && (
-        <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags}
-          propose={async () => {
-            const { dimension, tags } = await proposeTags({ name: form.name, note: form.note, tags: form.tags });
-            setTypeDimension(dimension);
-            writeSession(TYPE_DIMENSION, dimension);
-            return tags;
-          }}
+        <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags} typeDimension={dimension}
+          propose={() => proposeTags({ name: form.name, note: form.note, tags: form.tags })}
           onAdd={(p) => set("tags")(addTag(form.tags, p))} />
       )}
       <TextField label="Note (optional)" multiline value={form.note} onChange={set("note")} />

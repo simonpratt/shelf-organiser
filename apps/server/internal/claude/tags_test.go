@@ -64,6 +64,21 @@ func TestCleanProposalsStartsATypeDimensionWhenClaudeGivesNoUsableOne(t *testing
 	}
 }
 
+func TestCleanProposalsKeepsToTheTypeDimensionTheAppKnows(t *testing.T) {
+	got := cleanProposals(proposalOutput{Dimension: "Type", Items: []struct {
+		Ref  int64    `json:"ref"`
+		Tags []string `json:"tags"`
+	}{{Ref: 1, Tags: []string{"Type/Camping", "Stuff/Camping"}}}}, TagAsk{
+		Items: []ItemToTag{{Ref: 1, Name: "Tent"}}, Tree: [][]string{{"Stuff"}, {"Type"}}, Dimension: "Stuff", PerItem: 2, MaxItems: 1,
+	})
+	if got.Dimension != "Stuff" || len(got.Items) != 1 || len(got.Items[0].Tags) != 1 || got.Items[0].Tags[0].Path[0] != "Stuff" {
+		t.Errorf("got %+v; want only Stuff › Camping", got)
+	}
+	if msg := TagMessage(TagAsk{Dimension: "Stuff"}); !strings.Contains(msg, `what things are is "Stuff"`) {
+		t.Errorf("prompt doesn't name the dimension: %q", msg)
+	}
+}
+
 func TestProposeTagsSendsTheTreeAndItemsToHaiku(t *testing.T) {
 	fake := claudefake.New("test-key")
 	srv := httptest.NewServer(fake)

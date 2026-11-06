@@ -8,8 +8,8 @@
 // existing tag is suggested when its last name appears in the piece.
 //
 // It answers a request for tag proposals (one with an <items> section) in
-// the existing top-level tag named Type, Kind or Category, else a new
-// "Type": for each item with no tag there, first any existing tag in it whose
+// the dimension the request names, else the existing top-level tag named
+// Type, Kind or Category, else a new "Type": for each item with no tag there, first any existing tag in it whose
 // last name (less a final "s") appears in the item's name or note, then the
 // tags from a small keyword table (drill: Type/Tools/Power tools, tent:
 // Type/Camping, mower: Type/Garden, see keywords). Items matching nothing get

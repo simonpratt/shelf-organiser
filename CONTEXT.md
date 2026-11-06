@@ -47,7 +47,7 @@ A top-level tag, such as Location or Type, that groups one way of looking at the
 _Avoid_: root tag, axis, facet
 
 **Type dimension**:
-The dimension that says what kind of thing an item is, usually named Type; the only one Claude proposes tags in. Where things are is for the user to say.
+The dimension that says what kind of thing an item is: the one Claude first took as it, else the one named Type, Kind or Category. Once known it is the same on every screen. It is the only one Claude proposes tags in; where things are is for the user to say.
 _Avoid_: category, classification
 
 **Proposed tag**:

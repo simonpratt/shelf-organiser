@@ -80,7 +80,7 @@ func toAPIItem(it store.Item) Item {
 }
 
 func toAPITag(t store.Tag) Tag {
-	return Tag{Id: t.ID, Name: t.Name, ParentId: t.ParentID, Path: t.Path, ItemCount: t.ItemCount, TotalSpace: t.TotalSpace}
+	return Tag{Id: t.ID, Name: t.Name, ParentId: t.ParentID, Path: t.Path, ItemCount: t.ItemCount, TotalSpace: t.TotalSpace, IsTypeDimension: t.TypeDimension}
 }
 
 func toStoreInput(in *ItemInput) store.ItemInput {

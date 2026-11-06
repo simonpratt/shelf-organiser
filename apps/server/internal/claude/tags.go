@@ -63,6 +63,9 @@ type TagAsk struct {
 	PerItem int
 	// MaxItems is how many items to propose tags for at most.
 	MaxItems int
+	// Dimension is the Type dimension when the app knows it already, an
+	// existing top-level tag; empty lets Claude pick one.
+	Dimension string
 }
 
 const tagPrompt = `You organise the things stored in one person's shed or back room by what kind of thing they are, using their tag tree.
@@ -111,6 +114,9 @@ const maxNoteInPrompt = 200
 func TagMessage(ask TagAsk) string {
 	var b strings.Builder
 	writeTags(&b, ask.Tree)
+	if ask.Dimension != "" {
+		fmt.Fprintf(&b, "The dimension that says what things are is %q: use it.\n", ask.Dimension)
+	}
 	fmt.Fprintf(&b, "Propose up to %d tag paths per item, for at most %d items.\n\nItems, one JSON object per line:\n<items>\n", ask.PerItem, ask.MaxItems)
 	for _, it := range ask.Items {
 		note := []rune(it.Note)
@@ -154,7 +160,8 @@ func (c *Client) ProposeTags(ctx context.Context, ask TagAsk) (Proposals, error)
 const maxTagDepth = 4
 
 // cleanProposals keeps only proposals the app can apply as promised: inside
-// one dimension (matched to an existing top-level tag ignoring case), at
+// one dimension (ask.Dimension when set; else Claude's, which must be an
+// existing top-level tag, matched ignoring case, or becomes "Type"), at
 // least one level below it, valid names, for items asked about that have no
 // tag in that dimension yet, without tags they already have or repeats, and
 // at most ask.PerItem per item and ask.MaxItems items. Existing tags come
@@ -162,11 +169,14 @@ const maxTagDepth = 4
 func cleanProposals(out proposalOutput, ask TagAsk) Proposals {
 	existing := byPathKey(ask.Tree)
 	dim := strings.TrimSpace(out.Dimension)
-	if !validTagName(dim) {
-		dim = "Type"
+	if ask.Dimension != "" {
+		dim = ask.Dimension
 	}
-	if p, ok := existing[pathKey([]string{dim})]; ok {
+	// A new dimension is always "Type", which the store recognises by name.
+	if p, ok := existing[pathKey([]string{dim})]; ok && len(p) == 1 {
 		dim = p[0]
+	} else {
+		dim = "Type"
 	}
 	dimKey := pathKey([]string{dim})
 

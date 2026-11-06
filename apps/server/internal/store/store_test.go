@@ -380,3 +380,69 @@ func TestAddItemTagsKeepsExistingTagsAndChangesNothingOnAFailure(t *testing.T) {
 		t.Errorf("tent tags = %v; want the type tag created just before reused", refPaths(got.Tags))
 	}
 }
+
+func typeDimensionOf(t *testing.T, s *Store) string {
+	t.Helper()
+	tags, err := s.ListTags(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	for _, tag := range tags {
+		if tag.TypeDimension {
+			found = append(found, strings.Join(tag.Path, "/"))
+		}
+	}
+	if len(found) > 1 {
+		t.Fatalf("Type dimensions = %v; want at most one", found)
+	}
+	if len(found) == 0 {
+		return ""
+	}
+	return found[0]
+}
+
+func TestTheTypeDimensionIsTheRememberedTopLevelTagElseOneNamedLikeIt(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	_, _ = s.EnsureTag(ctx, []string{"Location", "Shed"})
+	if got := typeDimensionOf(t, s); got != "" {
+		t.Errorf("with only Location: Type dimension = %q; want none", got)
+	}
+	_, _ = s.EnsureTag(ctx, []string{"Category", "Tools"})
+	_, _ = s.EnsureTag(ctx, []string{"kind"})
+	if got := typeDimensionOf(t, s); got != "kind" {
+		t.Errorf("by name: Type dimension = %q; want kind, preferred to Category", got)
+	}
+
+	stuff, _ := s.EnsureTag(ctx, []string{"Stuff"})
+	if err := s.RememberTypeDimension(ctx, "stuff"); err != nil {
+		t.Fatal(err)
+	}
+	// The first remembered one sticks.
+	_ = s.RememberTypeDimension(ctx, "Location")
+	if got := typeDimensionOf(t, s); got != "Stuff" {
+		t.Errorf("remembered: Type dimension = %q; want Stuff", got)
+	}
+
+	// Merging it into another top-level tag carries it over.
+	if _, err := s.UpdateTag(ctx, stuff.ID, "Category", nil, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := typeDimensionOf(t, s); got != "Category" {
+		t.Errorf("after merging Stuff into Category: Type dimension = %q; want Category", got)
+	}
+
+	// Moved under another tag it stops being a dimension, and is forgotten.
+	cat, _ := s.EnsureTag(ctx, []string{"Category"})
+	loc, _ := s.EnsureTag(ctx, []string{"Location"})
+	if _, err := s.UpdateTag(ctx, cat.ID, "Category", &loc.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateTag(ctx, cat.ID, "Category", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := typeDimensionOf(t, s); got != "kind" {
+		t.Errorf("after a move down and back: Type dimension = %q; want kind by name again", got)
+	}
+}

@@ -27,6 +27,7 @@ var keywords = []struct {
 var (
 	perItemRe  = regexp.MustCompile(`up to (\d+) tag paths per item, for at most (\d+) items`)
 	categoryRe = regexp.MustCompile(`(?i)^(type|kind|category)$`)
+	givenDimRe = regexp.MustCompile(`The dimension that says what things are is "([^"]+)"`)
 )
 
 func (f *Fake) proposeTags(w http.ResponseWriter, body map[string]any, prompt string) {
@@ -50,10 +51,14 @@ func (f *Fake) proposeTags(w http.ResponseWriter, body map[string]any, prompt st
 		}
 	}
 	dim := "Type"
-	for _, t := range tree {
-		if !strings.Contains(t, "/") && categoryRe.MatchString(t) {
-			dim = t
-			break
+	if m := givenDimRe.FindStringSubmatch(prompt); m != nil {
+		dim = m[1]
+	} else {
+		for _, t := range tree {
+			if !strings.Contains(t, "/") && categoryRe.MatchString(t) {
+				dim = t
+				break
+			}
 		}
 	}
 

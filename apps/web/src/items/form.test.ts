@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addTag, carriedTags, emptyForm, fromItem, toInput } from "./form";
+import { addTag, carriedTags, emptyForm, fromItem, hasTagIn, toInput, typeDimension } from "./form";
 
 describe("toInput", () => {
   it("builds the API input, trimming text", () => {
@@ -37,4 +37,16 @@ it("carries every tag but the Type dimension's to the next item", () => {
   const tags = [["Location", "Shed", "Wall rack"], ["Type", "Tools", "Power tools"], ["Project", "Deck"]];
   expect(carriedTags(tags, "type")).toEqual([["Location", "Shed", "Wall rack"], ["Project", "Deck"]]);
   expect(carriedTags(tags, null)).toEqual(tags);
+});
+
+it("names the Type dimension the server marked, or none", () => {
+  expect(typeDimension([{ name: "Location", isTypeDimension: false }, { name: "Stuff", isTypeDimension: true }])).toBe("Stuff");
+  expect(typeDimension([{ name: "Location", isTypeDimension: false }])).toBeNull();
+  expect(typeDimension(undefined)).toBeNull();
+});
+
+it("tells whether an item has a tag in a dimension, ignoring case", () => {
+  expect(hasTagIn([["Location", "Shed"], ["Type", "Garden"]], "type")).toBe(true);
+  expect(hasTagIn([["Location", "Shed"]], "Type")).toBe(false);
+  expect(hasTagIn([["Type", "Garden"]], null)).toBe(false);
 });

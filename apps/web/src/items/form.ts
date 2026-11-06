@@ -35,14 +35,23 @@ export function addTag(tags: TagPath[], path: TagPath): TagPath[] {
   return [...tags, path];
 }
 
+/** The name of the Type dimension, if the tag tree has one. */
+export function typeDimension(tags: readonly { name: string; isTypeDimension: boolean }[] | undefined): string | null {
+  return tags?.find((t) => t.isTypeDimension)?.name ?? null;
+}
+
+/** True when one of tags is in dimension (null: there is no such dimension). */
+export function hasTagIn(tags: TagPath[], dimension: string | null): boolean {
+  return dimension !== null && tags.some((t) => t[0]?.toLowerCase() === dimension.toLowerCase());
+}
+
 /**
  * The tags Save and add another keeps for the next item, which is usually
  * from the same shelf but rarely the same kind of thing: all but those in
- * the Type dimension. typeDimension is null until Claude has named it.
+ * the Type dimension.
  */
-export function carriedTags(tags: TagPath[], typeDimension: string | null): TagPath[] {
-  if (typeDimension === null) return tags;
-  return tags.filter((t) => t[0]?.toLowerCase() !== typeDimension.toLowerCase());
+export function carriedTags(tags: TagPath[], dimension: string | null): TagPath[] {
+  return tags.filter((t) => !hasTagIn([t], dimension));
 }
 
 export function toInput(form: ItemForm): { input?: ItemInput; errors: FormErrors } {

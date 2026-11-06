@@ -133,10 +133,11 @@ export default function ComponentsPage() {
         </div>
       </Section>
       <Section title="TagProposals">
-        <TagProposals ready chosen={tags} onAdd={(p) => setTags([...tags, p])}
-          propose={async () => [{ path: ["Type", "Camping"], isNew: false }, { path: ["Type", "Camping", "Chairs"], isNew: true }]} />
-        <TagProposals ready chosen={[]} onAdd={() => {}} propose={async () => { throw new Error("Claude is busy. Try again in a minute, or pick tags by hand."); }} />
-        <TagProposals ready={false} chosen={[]} onAdd={() => {}} propose={async () => []} />
+        <TagProposals ready chosen={tags} onAdd={(p) => setTags([...tags, p])} typeDimension="Type"
+          propose={async () => ({ dimension: "Type", tags: [{ path: ["Type", "Camping"], isNew: false }, { path: ["Type", "Camping", "Chairs"], isNew: true }] })} />
+        <TagProposals ready chosen={[]} onAdd={() => {}} typeDimension={null} propose={async () => { throw new Error("Claude is busy. Try again in a minute, or pick tags by hand."); }} />
+        <TagProposals ready chosen={[]} onAdd={() => {}} typeDimension={null} propose={async () => ({ dimension: "Type", tags: [] })} />
+        <TagProposals ready={false} chosen={[]} onAdd={() => {}} typeDimension={null} propose={async () => ({ dimension: "Type", tags: [] })} />
       </Section>
       <Section title="ProposalCard">
         <ProposalCard name="Lawn mower" tags={proposalTags} onChange={setProposalTags} onRemove={() => {}} existingTags={existing} />
