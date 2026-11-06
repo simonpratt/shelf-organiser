@@ -1,10 +1,12 @@
-// Dictation (T2, ADR 0001): say a list into the keyboard's microphone, let
-// Claude turn it into drafts, check and correct them, then save them all.
+// Dictation (T2, T6, ADR 0003): say a list into the microphone, which Whisper
+// writes down in the browser, fix any words, let Claude turn it into drafts,
+// check and correct them, then save them all. Where the browser can't record,
+// the list is typed (or said into the keyboard's microphone) instead.
 // Nothing is saved until "Save all". The dictation and drafts are kept for the
 // tab until then, so Back or a reload loses nothing. Tags for the whole
 // dictation (where it all is) start from the Add form's and go on every draft.
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { proposeTags, useClaude, useDraftItems } from "../api/claude";
 import { useCreateItemDetached } from "../api/items";
@@ -17,6 +19,8 @@ import { Button } from "../components/Button";
 import { DraftCard } from "../components/DraftCard";
 import { EmptyState } from "../components/EmptyState";
 import { PageHeader } from "../components/PageHeader";
+import { ProgressBar } from "../components/ProgressBar";
+import { RecordButton } from "../components/RecordButton";
 import { Skeleton } from "../components/Skeleton";
 import { TagInput } from "../components/TagInput";
 import { TextField } from "../components/TextField";
@@ -26,6 +30,9 @@ import type { FormErrors, ItemForm } from "../items/form";
 import { readSession, writeSession } from "../session/store";
 import { addTag, carriedTags, locationDimension, typeDimension } from "../items/form";
 import { parseTagPath, type TagPath } from "../tags/path";
+import { browserVoiceSupport } from "../speech/microphone";
+import { useVoice } from "../speech/useVoice";
+import { appendSpoken, downloadLabel, type Voice } from "../speech/voice";
 
 /** What the Add form passes on, and gets back after Save all: tags in the Location dimension. */
 export type DictateState = { tags: TagPath[] };
@@ -74,6 +81,9 @@ function Dictation() {
   const [nothingFound, setNothingFound] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [support] = useState(browserVoiceSupport);
+  const onSpoken = useCallback((text: string) => setTranscript((t) => appendSpoken(t, text)), []);
+  const { voice, dispatch } = useVoice(onSpoken, support === null);
   useEffect(() => writeSession(KEPT, { transcript, drafts, shared, sharedDraft }), [transcript, drafts, shared, sharedDraft]);
   const existingTags = (tags.data ?? []).map((t) => t.path);
   const sharedField = (
@@ -127,15 +137,33 @@ function Dictation() {
     return (
       <form onSubmit={onRead} noValidate className="flex flex-1 flex-col gap-5">
         <PageHeader title="Dictate items" back={back}
-          summary="Tap the microphone on your keyboard and say what's in front of you. Claude turns it into items for you to check." />
-        <TextField label="What's here?" multiline rows={6} value={transcript} onChange={setTranscript} autoFocus
+          summary={support === null
+            ? "Say what's in front of you, one thing after another. Claude turns it into items for you to check."
+            : "Type what's in front of you, or say it into your keyboard's microphone. Claude turns it into items for you to check."} />
+        {support === null ? (
+          <div className="flex flex-col gap-3">
+            <RecordButton status={voice.mic.status} startedAt={voice.mic.status === "listening" ? voice.mic.startedAt : undefined}
+              disabled={voice.model.status === "failed"}
+              onPress={(now) => dispatch({ type: "press", now })} onRelease={(now) => dispatch({ type: "release", now })} />
+            <VoiceNotice voice={voice} onRetry={() => dispatch({ type: "load" })} />
+          </div>
+        ) : (
+          <Banner tone="info">
+            {support === "insecure"
+              ? "The microphone only works over a secure connection (HTTPS), which this address isn't. Type the list below instead."
+              : "This browser can't record here. Type the list below instead."}
+          </Banner>
+        )}
+        <TextField label="What's here?" multiline rows={6} value={transcript} onChange={setTranscript} autoFocus={support !== null}
           placeholder="e.g. two camping chairs, a crate of Christmas lights and the old tent, all on shelf 2"
-          hint="Say one thing after another. Mention where things are, or what kind, and Claude picks matching tags." />
+          hint={support === null
+            ? "What you say appears here. Fix any words it got wrong, or type more. Mention where things are, or what kind, and Claude picks matching tags."
+            : "Say one thing after another. Mention where things are, or what kind, and Claude picks matching tags."} />
         {sharedField}
         {nothingFound && <Banner tone="info">Claude didn't find any items in that. Try naming the things you can see.</Banner>}
         <div className="flex-1" />
         <ActionBar notice={draftItems.error && <Banner>{draftItems.error.message}</Banner>}>
-          <Button type="submit" variant="primary" block busy={draftItems.isPending} disabled={!transcript.trim()}>
+          <Button type="submit" variant="primary" block busy={draftItems.isPending} disabled={!transcript.trim() || voice.mic.status === "listening" || voice.mic.status === "writing"}>
             {draftItems.isPending ? "Reading…" : "Make drafts"}
           </Button>
         </ActionBar>
@@ -171,5 +199,27 @@ function Dictation() {
         </Button>
       </ActionBar>
     </div>
+  );
+}
+
+/** What the microphone and the speech model are up to, when there is something to say. */
+function VoiceNotice({ voice: { mic, model }, onRetry }: { voice: Voice; onRetry: () => void }) {
+  if (model.status === "failed") {
+    return <Banner action={<Button onClick={onRetry}>Retry</Button>}>Couldn't get speech recognition ready: {model.message}</Banner>;
+  }
+  if (mic.status === "idle" && mic.error) return <Banner>Couldn't hear that: {mic.error}</Banner>;
+  const notice = mic.status === "idle" || mic.status === "writing" ? mic.notice : undefined;
+  return (
+    <>
+      {model.status === "loading" && (
+        <ProgressBar label="Getting speech recognition ready" value={model.total ? model.loaded / model.total : 0}
+          detail={downloadLabel(model.loaded, model.total)} />
+      )}
+      {notice === "denied" && (
+        <Banner tone="info">The microphone is blocked for this site. Allow it in your browser's site settings and tap the microphone again, or type the list below.</Banner>
+      )}
+      {notice === "nothing" && <Banner tone="info">Didn't catch anything. Try again a little closer, or type it below.</Banner>}
+      {notice === "timeUp" && <Banner tone="info">Stopped after two minutes. Tap the microphone again to add more.</Banner>}
+    </>
   );
 }

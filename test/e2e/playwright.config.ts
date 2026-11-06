@@ -25,6 +25,10 @@ function assertFreshBinary() {
 }
 if (!target) assertFreshBinary();
 
+const fakeMic = ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"];
+// espeak-ng reading a dictation (9 s, 16 kHz mono); the words are in speech/dictation.spec.ts.
+const speechClip = new URL("./speech/shed.wav", import.meta.url).pathname;
+
 export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
@@ -34,8 +38,15 @@ export default defineConfig({
   use: { baseURL, trace: "retain-on-failure" },
   projects: [
     { name: "api", testDir: "./api" },
-    // Phone first: the app is used on a phone in the shed.
-    { name: "ui", testDir: "./ui", use: { ...devices["Pixel 7"] } },
+    // Phone first: the app is used on a phone in the shed. Chromium's fake
+    // microphone (a beep) lets Dictate record; the fixture fakes the transcriber.
+    { name: "ui", testDir: "./ui", use: { ...devices["Pixel 7"], launchOptions: { args: fakeMic } } },
+    // The real Whisper model on a committed clip: slow, so only `make e2e-speech` runs it.
+    {
+      name: "speech",
+      testDir: "./speech",
+      use: { ...devices["Pixel 7"], launchOptions: { args: [...fakeMic, `--use-file-for-fake-audio-capture=${speechClip}`] } },
+    },
   ],
   webServer: target
     ? undefined

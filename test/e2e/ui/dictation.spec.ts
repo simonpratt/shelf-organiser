@@ -4,14 +4,24 @@ import { expect, test } from "../fixtures/test";
 // The server's test-mode fake of the Anthropic API makes one draft per
 // comma- or "and"-separated piece, 40 L unless a keyword gives a rough size
 // (bike 500 L, toolbox 20 L, ...), tagging a piece that mentions an existing
-// tag's name.
-test("dictates a list, corrects the drafts and saves them all", async ({ page, request }) => {
+// tag's name. The fixture's fake transcriber "hears" window.shelfFakeSaid.
+test("speaks a list, fixes a word, corrects the drafts and saves them all", async ({ page, request }) => {
   await ensureTag(request, ["Location", "Shed"]);
   await ensureTag(request, ["Type", "Camping"]);
   await page.goto("/items/new");
 
   await page.getByRole("link", { name: "Dictate items" }).click();
-  await page.getByLabel("What's here?").fill("two camping chairs, a drill in the shed and a lamp");
+  await expect(page.getByRole("progressbar", { name: "Getting speech recognition ready" })).toHaveAttribute("aria-valuenow", "49");
+  await page.evaluate(() => (window.shelfFakeSaid = "two camping chairs, a drill in the shed and a lamb"));
+  const speak = page.getByRole("button", { name: "Speak" });
+  await speak.click();
+  await expect(speak).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Listening. Tap when you're done")).toBeVisible();
+  await speak.click();
+  const box = page.getByLabel("What's here?");
+  await expect(box).toHaveValue("two camping chairs, a drill in the shed and a lamb");
+  await expect(page.getByRole("progressbar")).toBeHidden();
+  await box.fill("two camping chairs, a drill in the shed and a lamp");
   await page.getByRole("button", { name: "Make drafts" }).click();
 
   await expect(page.getByRole("heading", { name: "Check the drafts" })).toBeVisible();
@@ -73,4 +83,16 @@ test("starts a dictation with the Add form's location and puts it on every draft
     "Camping chairs": ["Location/Shed/Shelf 3", "Type/Camping"],
     Lamp: ["Location/Shed/Shelf 3"],
   });
+});
+
+test("falls back to typing when the microphone is blocked", async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException("Permission denied", "NotAllowedError"));
+  });
+  await page.goto("/items/dictate");
+  await page.getByRole("button", { name: "Speak" }).click();
+  await expect(page.getByText("The microphone is blocked for this site.")).toBeVisible();
+  await page.getByLabel("What's here?").fill("a lamp");
+  await page.getByRole("button", { name: "Make drafts" }).click();
+  await expect(page.getByRole("article", { name: "Lamp" })).toBeVisible();
 });

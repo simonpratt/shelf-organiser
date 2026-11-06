@@ -17,8 +17,10 @@ import { Fab } from "../components/Fab";
 import { BackIcon, BoxIcon, ChevronIcon, CloseIcon, MapIcon, MicIcon, MinusIcon, PlusIcon, SearchIcon, SparkleIcon, TagIcon, UntaggedIcon } from "../components/icons";
 import { ItemRow } from "../components/ItemRow";
 import { PageHeader } from "../components/PageHeader";
+import { ProgressBar } from "../components/ProgressBar";
 import { ProposalCard } from "../components/ProposalCard";
 import { QuantityStepper } from "../components/QuantityStepper";
+import { RecordButton } from "../components/RecordButton";
 import { SearchField } from "../components/SearchField";
 import { Select } from "../components/Select";
 import { SizePicker } from "../components/SizePicker";
@@ -33,6 +35,8 @@ import { TextField } from "../components/TextField";
 import { Toast } from "../components/Toast";
 import { Treemap } from "../components/Treemap";
 import { breakdown } from "../space/breakdown";
+
+const listeningSince = Date.now() - 7_000;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -100,6 +104,17 @@ export default function ComponentsPage() {
         <div className="flex gap-3"><PlusIcon /><MinusIcon /><CloseIcon /><BackIcon /><SearchIcon /><BoxIcon /><TagIcon /><UntaggedIcon /><ChevronIcon /><MicIcon /><MapIcon /><SparkleIcon /></div>
       </Section>
       <Section title="Spinner"><Spinner /><Spinner label="Saving…" /></Section>
+      <Section title="ProgressBar">
+        <ProgressBar label="Getting speech recognition ready" value={0.3} detail="23 of 77 MB" />
+        <ProgressBar label="Just a label" value={0} />
+      </Section>
+      <Section title="RecordButton">
+        {(["idle", "asking", "listening", "writing"] as const).map((status) => (
+          <RecordButton key={status} status={status} startedAt={status === "listening" ? listeningSince : undefined}
+            onPress={() => {}} onRelease={() => {}} />
+        ))}
+        <RecordButton status="idle" disabled onPress={() => {}} onRelease={() => {}} />
+      </Section>
       <Section title="TextField">
         <TextField label="Name" value={text} onChange={setText} />
         <TextField label="With hint" value="" onChange={() => {}} hint="A hint below the field" placeholder="Placeholder" />
