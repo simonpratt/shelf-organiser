@@ -49,8 +49,9 @@ test("organises untyped items: edits one proposal, leaves one out and applies th
   });
 });
 
-test("suggests tags on the item form and adds only the one tapped", async ({ page, request }) => {
+test("suggests tags on the item form, adds only the one tapped, and carries only the location to the next item", async ({ page, request }) => {
   await ensureTag(request, ["Type", "Camping"]);
+  await ensureTag(request, ["Location", "Shed"]);
   await page.goto("/items/new");
 
   await page.getByRole("button", { name: "Suggest tags" }).click();
@@ -58,6 +59,8 @@ test("suggests tags on the item form and adds only the one tapped", async ({ pag
 
   await page.getByLabel("Name").fill("Camping chair");
   await page.getByRole("radio", { name: /Crate/ }).click();
+  await page.getByRole("combobox", { name: "Tags" }).fill("Location/Shed");
+  await page.getByRole("combobox", { name: "Tags" }).press("Enter");
   await page.getByRole("button", { name: "Suggest tags" }).click();
   const suggested = page.getByRole("list", { name: "Suggested tags" });
   await expect(suggested.getByRole("button")).toHaveText(["Type › Camping", "Type › FurnitureNew"]);
@@ -66,7 +69,9 @@ test("suggests tags on the item form and adds only the one tapped", async ({ pag
   await expect(page.getByRole("list", { name: "Chosen tags" })).toContainText("Type › FurnitureNew");
   await expect(suggested.getByRole("button")).toHaveText(["Type › Camping"]);
 
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  // The next item is likely on the same shelf, but not another chair.
+  await page.getByRole("button", { name: "Save and add another" }).click();
   await expect(page.getByText("Saved “Camping chair”")).toBeVisible();
-  expect(await tagsOf(request)).toEqual({ "Camping chair": ["Type/Furniture"] });
+  expect(await tagsOf(request)).toEqual({ "Camping chair": ["Location/Shed", "Type/Furniture"] });
+  await expect(page.getByRole("list", { name: "Chosen tags" }).getByRole("listitem")).toHaveText(["Location › Shed"]);
 });

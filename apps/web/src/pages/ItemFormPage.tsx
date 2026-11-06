@@ -22,7 +22,11 @@ import { TagInput } from "../components/TagInput";
 import { TagProposals } from "../components/TagProposals";
 import { TextField } from "../components/TextField";
 import { useToast } from "../components/Toast";
-import { addTag, emptyForm, fromItem, toInput, type FormErrors, type ItemForm } from "../items/form";
+import { addTag, carriedTags, emptyForm, fromItem, toInput, type FormErrors, type ItemForm } from "../items/form";
+import { readSession, writeSession } from "../session/store";
+
+// The top-level tag Claude last took as the Type dimension, kept for the tab.
+const TYPE_DIMENSION = "typeDimension";
 
 export function ItemFormPage() {
   const { id } = useParams();
@@ -59,6 +63,7 @@ function Editor({ item }: { item?: Item }) {
   const [errors, setErrors] = useState<FormErrors>({});
   const nameRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"save" | "another">("save");
+  const [typeDimension, setTypeDimension] = useState(() => readSession<string | null>(TYPE_DIMENSION, null));
   const set = <K extends keyof ItemForm>(key: K) => (value: ItemForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     // A fixed field drops its error straight away rather than on the next save.
@@ -76,8 +81,7 @@ function Editor({ item }: { item?: Item }) {
     try {
       const saved = await save.mutateAsync(input);
       if (another) {
-        // Keep the tags: the next item is usually from the same shelf.
-        setForm(emptyForm(input.tags));
+        setForm(emptyForm(carriedTags(input.tags, typeDimension)));
         toast({ message: `Saved “${saved.name}”. Add the next one.` });
         nameRef.current?.focus();
       } else {
@@ -132,7 +136,12 @@ function Editor({ item }: { item?: Item }) {
         existing={(tags.data ?? []).map((t) => t.path)} />
       {claude.data?.enabled && (
         <TagProposals key={form.name.trim()} ready={form.name.trim() !== ""} chosen={form.tags}
-          propose={() => proposeTags({ name: form.name, note: form.note, tags: form.tags })}
+          propose={async () => {
+            const { dimension, tags } = await proposeTags({ name: form.name, note: form.note, tags: form.tags });
+            setTypeDimension(dimension);
+            writeSession(TYPE_DIMENSION, dimension);
+            return tags;
+          }}
           onAdd={(p) => set("tags")(addTag(form.tags, p))} />
       )}
       <TextField label="Note (optional)" multiline value={form.note} onChange={set("note")} />

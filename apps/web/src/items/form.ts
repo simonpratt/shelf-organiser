@@ -35,6 +35,16 @@ export function addTag(tags: TagPath[], path: TagPath): TagPath[] {
   return [...tags, path];
 }
 
+/**
+ * The tags Save and add another keeps for the next item, which is usually
+ * from the same shelf but rarely the same kind of thing: all but those in
+ * the Type dimension. typeDimension is null until Claude has named it.
+ */
+export function carriedTags(tags: TagPath[], typeDimension: string | null): TagPath[] {
+  if (typeDimension === null) return tags;
+  return tags.filter((t) => t[0]?.toLowerCase() !== typeDimension.toLowerCase());
+}
+
 export function toInput(form: ItemForm): { input?: ItemInput; errors: FormErrors } {
   const errors: FormErrors = {};
   const name = form.name.trim();

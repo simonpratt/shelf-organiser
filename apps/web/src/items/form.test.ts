@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addTag, emptyForm, fromItem, toInput } from "./form";
+import { addTag, carriedTags, emptyForm, fromItem, toInput } from "./form";
 
 describe("toInput", () => {
   it("builds the API input, trimming text", () => {
@@ -31,4 +31,10 @@ it("adds a tag once, ignoring case and empty paths", () => {
 it("round-trips an item into the form", () => {
   const form = fromItem({ name: "Tent", litres: 2.5, quantity: 3, note: "", tags: [{ path: ["Type"] }] });
   expect(toInput(form).input).toEqual({ name: "Tent", litres: 2.5, quantity: 3, note: "", tags: [["Type"]] });
+});
+
+it("carries every tag but the Type dimension's to the next item", () => {
+  const tags = [["Location", "Shed", "Wall rack"], ["Type", "Tools", "Power tools"], ["Project", "Deck"]];
+  expect(carriedTags(tags, "type")).toEqual([["Location", "Shed", "Wall rack"], ["Project", "Deck"]]);
+  expect(carriedTags(tags, null)).toEqual(tags);
 });

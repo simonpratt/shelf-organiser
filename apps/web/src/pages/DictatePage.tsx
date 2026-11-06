@@ -136,7 +136,7 @@ function Dictation() {
         drafts.map((d) => (
           <DraftCard key={d.key} form={d.form} errors={d.errors} existingTags={(tags.data ?? []).map((t) => t.path)}
             onChange={(change) => update(d.key, change)} onRemove={() => remove(d.key)}
-            propose={(form) => proposeTags({ name: form.name, note: form.note, tags: form.tags })} />
+            propose={async (form) => (await proposeTags({ name: form.name, note: form.note, tags: form.tags })).tags} />
         ))
       )}
       {saveError && <Banner>{saveError}</Banner>}

@@ -21,9 +21,12 @@ export function useDraftItems() {
   });
 }
 
-/** Proposes tags for one item, saved or not, from its name, note and tags so far. */
+/**
+ * Proposes tags for one item, saved or not, from its name, note and tags so
+ * far, and names the top-level tag Claude took as the Type dimension.
+ */
 export async function proposeTags(item: { name: string; note: string; tags: TagPath[] }) {
-  return unwrap(await api.POST("/api/tag-proposals", { body: item })).tags;
+  return unwrap(await api.POST("/api/tag-proposals", { body: item }));
 }
 
 export function useOrganise() {
