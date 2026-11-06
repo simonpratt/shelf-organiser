@@ -18,7 +18,7 @@ dev:
 	DATA_DIR=$(DEV_DATA_DIR) go run ./apps/server/cmd/$(APP) & \
 	pnpm --filter ./apps/web dev; kill %1
 
-# make dev with dictation answered by the shared Anthropic fake (test mode, so
+# make dev with every Claude call answered by the shared Anthropic fake (test mode, so
 # POST /api/test/reset is mounted too); no API key or network needed.
 dev-fake:
 	APP_TEST_MODE=1 ANTHROPIC_API_KEY=test-anthropic-key \
