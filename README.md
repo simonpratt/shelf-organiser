@@ -21,7 +21,7 @@ A self-hosted app for cataloguing what's in your shed or back room, so you can s
 
 ## Deploy
 
-No image is published yet; build it with `docker build -t shelf-organiser .` (the build downloads the speech model from Hugging Face, so it needs internet access). It serves on port 8080 and keeps its SQLite database in the `/data` volume. The container runs as UID/GID 65532, so a bind-mounted `/data` must be writable by that user.
+CI publishes `ghcr.io/simonpratt/shelf-organiser` for amd64 and arm64: `latest` from master, `X.Y.Z` from `vX.Y.Z` tags, and `sha-<short>` for every build. To build it yourself, `docker build -t shelf-organiser .` (the build downloads the speech model from Hugging Face, so it needs internet access). It serves on port 8080 and keeps its SQLite database in the `/data` volume. The container runs as UID/GID 65532, so a bind-mounted `/data` must be writable by that user.
 
 ## Configuration
 
