@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"shelf-organiser/apps/server/internal/auth"
 	"shelf-organiser/apps/server/internal/claude"
 	"shelf-organiser/apps/server/internal/store"
 	"shelf-organiser/apps/server/openapi"
@@ -17,13 +18,16 @@ type handlers struct {
 	logger *slog.Logger
 	// claude is nil when no Anthropic API key is configured.
 	claude *claude.Client
+	// auth is nil when no login is set up.
+	auth *auth.Auth
 }
 
 // Register mounts the JSON API, its spec at /api/openapi.json, and a JSON
 // 404 for any other /api path, on mux. A nil Claude client leaves every
-// Claude feature off.
-func Register(mux *http.ServeMux, s *store.Store, c *claude.Client, logger *slog.Logger) {
-	h := &handlers{store: s, logger: logger, claude: c}
+// Claude feature off, and a nil Auth the login. Requests reach these handlers
+// through auth.Middleware.
+func Register(mux *http.ServeMux, s *store.Store, c *claude.Client, a *auth.Auth, logger *slog.Logger) {
+	h := &handlers{store: s, logger: logger, claude: c, auth: a}
 	strict := NewStrictHandlerWithOptions(h, nil, StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			WriteError(w, http.StatusBadRequest, "invalid request body")

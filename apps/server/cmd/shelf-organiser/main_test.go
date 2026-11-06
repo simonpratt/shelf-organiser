@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +21,12 @@ import (
 // startApp boots the whole app through run(), as main does, on a free port
 // with a fresh database, and returns its base URL.
 func startApp(t *testing.T, env map[string]string) string {
+	t.Helper()
+	return startAppLogging(t, env, io.Discard)
+}
+
+// startAppLogging is startApp, writing the app's log to logOut.
+func startAppLogging(t *testing.T, env map[string]string, logOut io.Writer) string {
 	t.Helper()
 	if env == nil {
 		env = map[string]string{}
@@ -29,7 +38,7 @@ func startApp(t *testing.T, env map[string]string) string {
 	addr := make(chan net.Addr, 1)
 	done := make(chan error, 1)
 	go func() {
-		done <- run(ctx, func(k string) string { return env[k] }, io.Discard, func(a net.Addr) { addr <- a })
+		done <- run(ctx, func(k string) string { return env[k] }, logOut, func(a net.Addr) { addr <- a })
 	}()
 	var base string
 	select {
@@ -289,5 +298,108 @@ func TestOrganiseProposesTypeTagsThatApplyInOneGo(t *testing.T) {
 	}
 	if code, _ := do(t, "POST", base+"/api/tag-proposals", `{"name":" "}`); code != 400 {
 		t.Errorf("tag proposals without a name = %d; want 400", code)
+	}
+}
+
+// syncBuffer is a bytes.Buffer safe to read while the app writes its log.
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+func TestLoginGuardsTheAPIAndKeepsTheBrowserLoggedInUntilLogout(t *testing.T) {
+	var logs syncBuffer
+	base := startAppLogging(t, map[string]string{
+		"APP_USERNAME": "simon", "APP_PASSWORD": "correct horse", "APP_TEST_MODE": "1",
+	}, &logs)
+	jar, _ := cookiejar.New(nil)
+	browser := &http.Client{Jar: jar}
+	call := func(method, path, body string) (int, string, *http.Response) {
+		t.Helper()
+		req, _ := http.NewRequest(method, base+path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		res, err := browser.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, strings.TrimSpace(string(b)), res
+	}
+
+	// Without a session: the API is closed, but health, the client, its
+	// files and the test routes are open.
+	for _, path := range []string{"/api/items", "/api/tags", "/api/claude", "/api/nope"} {
+		if code, body, _ := call("GET", path, ""); code != 401 || body != `{"error":"unauthorized"}` {
+			t.Errorf("GET %s logged out = %d %s; want 401 unauthorized", path, code, body)
+		}
+	}
+	for _, path := range []string{"/healthz", "/", "/login"} {
+		if code, _, _ := call("GET", path, ""); code != 200 {
+			t.Errorf("GET %s logged out = %d; want 200", path, code)
+		}
+	}
+	if code, _, _ := call("POST", "/api/test/reset", ""); code != 204 {
+		t.Errorf("test reset logged out = %d; want 204", code)
+	}
+	if _, body, _ := call("GET", "/api/session", ""); body != `{"loggedIn":false,"loginRequired":true}` {
+		t.Errorf("session logged out = %s", body)
+	}
+
+	if code, body, _ := call("POST", "/api/login", `{"username":"simon","password":"wrong"}`); code != 401 || body != `{"error":"Wrong username or password."}` {
+		t.Errorf("wrong password = %d %s", code, body)
+	}
+	code, _, res := call("POST", "/api/login", `{"username":"simon","password":"correct horse"}`)
+	if code != 204 {
+		t.Fatalf("login = %d; want 204", code)
+	}
+	if c := res.Header.Get("Set-Cookie"); !strings.Contains(c, "HttpOnly") || !strings.Contains(c, "SameSite=Strict") || !strings.Contains(c, "Max-Age=7776000") || strings.Contains(c, "Secure") {
+		t.Errorf("session cookie = %q; want HttpOnly, Strict, 90 days, not Secure over plain HTTP", c)
+	}
+	if code, body, _ := call("POST", "/api/items", `{"name":"Tent","litres":30}`); code != 201 {
+		t.Errorf("create logged in = %d %s; want 201", code, body)
+	}
+	if _, body, _ := call("GET", "/api/session", ""); body != `{"loggedIn":true,"loginRequired":true}` {
+		t.Errorf("session logged in = %s", body)
+	}
+
+	if code, _, _ := call("POST", "/api/logout", ""); code != 204 {
+		t.Errorf("logout = %d; want 204", code)
+	}
+	if code, _, _ := call("GET", "/api/items", ""); code != 401 {
+		t.Errorf("items after logout = %d; want 401", code)
+	}
+
+	if strings.Contains(logs.String(), "correct horse") {
+		t.Errorf("the password is in the log:\n%s", logs.String())
+	}
+}
+
+func TestNoLoginLeavesTheAPIOpenAndSaysSo(t *testing.T) {
+	var logs syncBuffer
+	base := startAppLogging(t, nil, &logs)
+	if code, _ := do(t, "GET", base+"/api/items", ""); code != 200 {
+		t.Errorf("items = %d; want 200 without a login", code)
+	}
+	if _, body := do(t, "GET", base+"/api/session", ""); strings.TrimSpace(body) != `{"loggedIn":true,"loginRequired":false}` {
+		t.Errorf("session = %s", body)
+	}
+	if code, _ := do(t, "POST", base+"/api/login", `{"username":"a","password":"b"}`); code != 404 {
+		t.Errorf("login without one set up = %d; want 404", code)
+	}
+	if !strings.Contains(logs.String(), "no login") {
+		t.Errorf("startup log doesn't say there is no login:\n%s", logs.String())
 	}
 }

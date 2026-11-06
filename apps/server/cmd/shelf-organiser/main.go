@@ -11,12 +11,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	_ "time/tzdata" // TZ works on distroless, which has no zoneinfo
 
 	"shelf-organiser/apps/server/internal/api"
+	"shelf-organiser/apps/server/internal/auth"
 	"shelf-organiser/apps/server/internal/claude"
 	"shelf-organiser/apps/server/internal/claude/claudefake"
 	"shelf-organiser/apps/server/internal/config"
@@ -51,17 +54,28 @@ func run(ctx context.Context, getenv func(string) string, logOut io.Writer, onLi
 	}
 	defer st.Close()
 
+	var a *auth.Auth
+	if cfg.AuthEnabled() {
+		key, err := st.SessionKey(ctx)
+		if err != nil {
+			return err
+		}
+		a = auth.New(cfg.Username, cfg.Password.Reveal(), key, time.Now)
+	} else {
+		logger.Warn("no login: APP_USERNAME and APP_PASSWORD are empty, so anyone who can reach the app can use it")
+	}
+
 	ln, err := net.Listen("tcp", ":"+strconv.Itoa(cfg.Port))
 	if err != nil {
 		return fmt.Errorf("listening on port %d: %w", cfg.Port, err)
 	}
 	srv := &http.Server{
-		Handler:           newHandler(cfg, st, logger),
+		Handler:           newHandler(cfg, st, a, logger),
 		ReadHeaderTimeout: 10 * time.Second,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
 	}
 	logger.Info("listening", "addr", ln.Addr().String(), "data_dir", cfg.DataDir, "test_mode", cfg.TestMode,
-		"claude", cfg.AnthropicAPIKey.IsSet())
+		"claude", cfg.AnthropicAPIKey.IsSet(), "login", cfg.AuthEnabled())
 	if onListen != nil {
 		onListen(ln.Addr())
 	}
@@ -85,7 +99,10 @@ func run(ctx context.Context, getenv func(string) string, logOut io.Writer, onLi
 // testAnthropicKey is the only API key the test-mode fake Anthropic API accepts.
 const testAnthropicKey = "test-anthropic-key"
 
-func newHandler(cfg config.Config, st *store.Store, logger *slog.Logger) http.Handler {
+// newHandler serves the app. With a login (a non-nil Auth), every /api/ path
+// but the session routes, and the test routes in test mode, needs a session;
+// /healthz, the client and its files (no data in them) never do.
+func newHandler(cfg config.Config, st *store.Store, a *auth.Auth, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("ok\n"))
@@ -94,7 +111,7 @@ func newHandler(cfg config.Config, st *store.Store, logger *slog.Logger) http.Ha
 	if cfg.AnthropicAPIKey.IsSet() {
 		c = claude.New(cfg.AnthropicAPIKey.Reveal(), cfg.AnthropicBaseURL)
 	}
-	api.Register(mux, st, c, logger)
+	api.Register(mux, st, c, a, logger)
 	if cfg.TestMode {
 		// The e2e suite points ANTHROPIC_BASE_URL here, so Claude features run
 		// against the shared fake rather than the real API.
@@ -110,5 +127,11 @@ func newHandler(cfg config.Config, st *store.Store, logger *slog.Logger) http.Ha
 		})
 	}
 	mux.Handle("/", web.Handler())
-	return mux
+	public := func(r *http.Request) bool {
+		if cfg.TestMode && strings.HasPrefix(r.URL.Path, "/api/test/") {
+			return true // the e2e suite resets the database without logging in
+		}
+		return slices.Contains(api.PublicPaths, r.URL.Path)
+	}
+	return auth.Middleware(a, public, mux)
 }

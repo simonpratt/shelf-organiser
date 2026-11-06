@@ -7,6 +7,79 @@ info:
     to group them. A tag's path is its names from the top-level tag down,
     e.g. ["Location", "Shed", "Shelf 2"].
 paths:
+  /api/session:
+    get:
+      operationId: getSession
+      summary: Whether the app asks for a login, and whether this browser is logged in
+      description: Needs no session. Without a login set up, loggedIn is always true.
+      responses:
+        "200":
+          description: Session status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [loginRequired, loggedIn]
+                properties:
+                  loginRequired: { type: boolean }
+                  loggedIn: { type: boolean }
+  /api/login:
+    post:
+      operationId: login
+      summary: Log in with the username and password, setting the session cookie
+      description: |
+        Needs no session. Every other /api path answers 401 without one,
+        when a login is set up. Failed tries are limited for every client
+        together: after five, one more every ten seconds.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "204":
+          description: Logged in
+          headers:
+            Set-Cookie:
+              description: The session cookie (HttpOnly, SameSite=Strict, 90 days, renewed as the app is used)
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401":
+          description: The username or password is wrong
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: No login is set up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too many failed tries lately
+          headers:
+            Retry-After:
+              description: Seconds until the next try is allowed
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/logout:
+    post:
+      operationId: logout
+      summary: Log out, clearing the session cookie
+      description: Needs no session.
+      responses:
+        "204":
+          description: Logged out
+          headers:
+            Set-Cookie:
+              description: Clears the session cookie
+              schema: { type: string }
   /api/items:
     get:
       operationId: listItems
