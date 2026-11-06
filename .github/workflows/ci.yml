@@ -1,0 +1,209 @@
+# checks, e2e and smoke run in parallel. checks runs `make check` (gofmt, go
+# vet, ESLint, typechecks, unit tests); e2e runs the full Playwright suite
+# (`make e2e e2e-speech`: the api and ui projects, then the real Whisper model
+# in the speech project) against the binary built from source; smoke builds the
+# linux/amd64 image, runs it and runs `make smoke` (the @smoke tests) against
+# the container. publish waits for all three, then builds linux/amd64 and
+# linux/arm64 in one step (Go cross-compiles in the Dockerfile, so no QEMU) with
+# the amd64 layers from smoke's cache. It pushes to GHCR on master and v* tags;
+# pull requests only build.
+#
+# The Whisper model (apps/web/speech-model.json, ~77 MB from Hugging Face,
+# SHA-256 checked) is cached on that file's hash: in e2e by actions/cache, and
+# in the image builds by its own Dockerfile layer in the gha build cache.
+#
+# Tags: master → :latest + :sha-<short>; tag vX.Y.Z → :X.Y.Z + :sha-<short>.
+#
+# Actions are on their major version tags; Dependabot (.github/dependabot.yml)
+# raises a PR when a new major comes out.
+name: ci
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/shelf-organiser
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # Version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: make install
+
+      # gofmt, go vet, ESLint, both typechecks, then the unit tests.
+      - run: make check
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # Version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: make install
+
+      # make build runs make model, which keeps files whose SHA-256 matches, so
+      # a cache hit means no download.
+      - name: Whisper model cache
+        uses: actions/cache@v6
+        with:
+          path: apps/web/public/models
+          key: whisper-${{ hashFiles('apps/web/speech-model.json') }}
+
+      - id: playwright
+        name: Playwright version
+        run: echo "version=$(pnpm --filter ./test/e2e exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - id: browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter ./test/e2e exec playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --filter ./test/e2e exec playwright install-deps chromium
+
+      # One make run, so the binary is built once for both targets.
+      - name: Full e2e suite
+        run: make e2e e2e-speech
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-results
+          path: |
+            test/e2e/test-results/
+            test/e2e/playwright-report/
+          retention-days: 7
+
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: shelf-organiser:smoke
+          cache-from: |
+            type=gha,scope=smoke
+            type=gha,scope=publish
+          cache-to: type=gha,scope=smoke,mode=max
+
+      - name: Start image
+        run: |
+          docker run -d --name app -p 8080:8080 shelf-organiser:smoke
+          curl --silent --fail --retry 30 --retry-delay 1 --retry-all-errors http://localhost:8080/healthz > /dev/null
+
+      # Version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: make install
+
+      # A plain install: the e2e job's browser cache isn't worth repeating for
+      # a handful of tests.
+      - run: pnpm --filter ./test/e2e exec playwright install --with-deps chromium
+
+      # The @smoke tests with APP_TEST_URL=http://localhost:8080.
+      - name: Smoke tests against the image
+        run: make smoke
+
+      - name: Image logs
+        if: failure()
+        run: docker logs app
+
+  publish:
+    needs: [checks, e2e, smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+            type=semver,pattern={{version}}
+
+      # The amd64 layers come from smoke's cache, so this is the image that
+      # was smoke-tested.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: |
+            type=gha,scope=smoke
+            type=gha,scope=publish
+          cache-to: type=gha,scope=publish,mode=max
