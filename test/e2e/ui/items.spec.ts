@@ -1,4 +1,4 @@
-import { ensureTag, listItems, tagPaths } from "../fixtures/api";
+import { createItem, ensureTag, listItems, tagPaths } from "../fixtures/api";
 import { expect, test } from "../fixtures/test";
 
 test("adds an item with a new nested tag, edits it, then deletes it and undoes the delete", async ({ page, request }) => {
@@ -52,6 +52,29 @@ test("adds an item with a new nested tag, edits it, then deletes it and undoes t
   await expect(page.getByRole("listitem").filter({ hasText: "Folding chairs" })).toContainText("70 L");
   const restored = await listItems(request);
   expect(restored.map((i) => [i.name, i.litres, i.quantity, i.tags.length])).toEqual([["Folding chairs", 35, 2, 2]]);
+});
+
+test("returns to the searched list or the space map after a save or delete", async ({ page, request }) => {
+  await createItem(request, { name: "Tent", litres: 100, tags: [["Location", "Shed"]] });
+  await createItem(request, { name: "Lamp", litres: 20, tags: [["Location", "Shed"]] });
+  await page.goto("/");
+
+  await page.getByLabel("Search items").fill("tent");
+  await page.getByRole("listitem").filter({ hasText: "Tent" }).click();
+  await page.getByLabel("Quantity").fill("2");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByLabel("Search items")).toHaveValue("tent");
+  await expect(page.getByRole("list", { name: "Items" }).getByRole("listitem")).toHaveText([/Tent/]);
+
+  // Deleting from the space map goes back there, and Back can't reach the deleted item.
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Space" }).click();
+  await page.getByRole("list", { name: "Breakdown" }).getByRole("link", { name: /^Shed/ }).click();
+  await page.getByRole("list", { name: "Breakdown" }).getByRole("link", { name: /^Lamp/ }).click();
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Deleted “Lamp”")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Shed" })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Space" })).toBeVisible();
 });
 
 test("loads the item list @smoke", async ({ page }) => {

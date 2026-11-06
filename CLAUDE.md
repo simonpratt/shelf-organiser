@@ -35,6 +35,7 @@ Gotchas:
 - **Read `CONTEXT.md` first** and use its terms in code, API, UI copy and tests, never its _Avoid_ words ("dimension" is a top-level tag such as Location, never an item's physical size).
 - **Go and frontend house rules** are the `homelab-go-service`, `homelab-frontend` and `homelab-testing` skills. Here the tokens are in `apps/web/src/index.css` and the catalogue is `/dev/components` (`catalogue.test.ts` fails when a component is missing from it). Check screens at 390 px.
 - **Tags form one tree:** sibling names are unique ignoring case, a tag can't move inside its own subtree, and names can't contain `/` or `›` (how paths are typed and shown). `store_test.go` covers these.
+- **Back, and leaving a screen after a save or delete, go back in history** (`useGoBack` in `apps/web/src/back.ts`), so the list's search and filter (kept in the URL) and the place on the space map survive; only on a visit's first screen do they open a fallback route instead.
 - **Deleting a tag deletes its subtree;** items stay and lose those tags. The UI confirms first. Deleting an item instead offers Undo.
 - **Items store litres per unit;** total space is litres × quantity. Size presets live only in `apps/web/src/items/size.ts` and are never stored.
 - **Item writes take tag paths;** the server creates missing tags in the same transaction, so a rejected item leaves no stray tags.

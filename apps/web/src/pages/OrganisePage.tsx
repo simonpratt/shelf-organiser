@@ -3,7 +3,7 @@
 // proposals, and Apply adds the rest in one go. Nothing changes until then.
 // The review is kept for the tab, so Back or a reload loses nothing.
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useGoBack } from "../back";
 import { useClaude, useOrganise } from "../api/claude";
 import { useAddItemTags, useItems } from "../api/items";
 import { useTags } from "../api/tags";
@@ -47,7 +47,7 @@ type Kept = { dimension: string; remaining: number; rows: Reviewed[] } | null;
 const KEPT = "organise";
 
 function Organise() {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const toast = useToast();
   const items = useItems();
   const tags = useTags();
@@ -111,7 +111,7 @@ function Organise() {
     // Navigating away unmounts this screen, so nothing writes the review back.
     writeSession(KEPT, null);
     toast({ message: assignments.length === 1 ? "Tagged 1 item" : `Tagged ${assignments.length} items` });
-    navigate("/");
+    goBack("/");
   };
 
   return (

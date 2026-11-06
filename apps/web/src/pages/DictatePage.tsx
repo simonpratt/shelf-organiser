@@ -112,7 +112,8 @@ function Dictation() {
     // Navigating away unmounts this screen, so nothing writes the drafts back.
     writeSession(KEPT, null);
     toast({ message: saved === 1 ? "Saved 1 item" : `Saved ${saved} items` });
-    navigate("/");
+    // In place of the dictation, so Back goes to the Add form, not an empty dictation.
+    navigate("/", { replace: true });
   };
 
   if (drafts === null) {

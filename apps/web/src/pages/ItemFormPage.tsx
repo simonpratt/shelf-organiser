@@ -3,7 +3,8 @@
 // Undo rather than a confirmation, since it is cheap to reverse. T2: when
 // dictation is set up, adding offers it first. T5: Claude can suggest tags.
 import { useRef, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useGoBack } from "../back";
 import type { Item } from "../api/client";
 import { proposeTags, useClaude } from "../api/claude";
 import { useCreateItem, useCreateItemDetached, useDeleteItem, useItems, useUpdateItem } from "../api/items";
@@ -52,7 +53,7 @@ export function ItemFormPage() {
 }
 
 function Editor({ item }: { item?: Item }) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const toast = useToast();
   const tags = useTags();
   const claude = useClaude();
@@ -87,7 +88,7 @@ function Editor({ item }: { item?: Item }) {
         nameRef.current?.focus();
       } else {
         toast({ message: `Saved “${saved.name}”` });
-        navigate("/");
+        goBack("/");
       }
     } catch {
       // save.error is shown in the banner below
@@ -116,7 +117,7 @@ function Editor({ item }: { item?: Item }) {
         },
       },
     });
-    navigate("/");
+    goBack("/");
   };
 
   const busy = save.isPending || remove.isPending;
