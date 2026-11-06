@@ -12,6 +12,11 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
 COPY test/e2e/package.json test/e2e/
 RUN pnpm install --frozen-lockfile --filter ./apps/web
+# The speech model (ADR 0003), pinned by revision and checked by SHA-256, in its
+# own layer so it downloads again only when speech-model.json changes.
+COPY apps/web/speech-model.json apps/web/
+COPY apps/web/scripts/fetch-model.mjs apps/web/scripts/
+RUN node apps/web/scripts/fetch-model.mjs
 COPY apps/web apps/web
 RUN pnpm --filter ./apps/web build
 

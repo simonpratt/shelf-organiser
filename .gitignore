@@ -11,3 +11,4 @@ test/e2e/playwright-report/
 .env
 .pnpm-store/
 *.tsbuildinfo
+apps/web/public/models/

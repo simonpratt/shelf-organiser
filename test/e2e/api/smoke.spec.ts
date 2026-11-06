@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createItem, listItems } from "../fixtures/api";
 import { expect, test } from "../fixtures/test";
 
@@ -11,6 +12,23 @@ test("answers the health check and serves the app shell with its assets @smoke",
   const asset = await request.get(script!);
   expect(asset.ok()).toBe(true);
   expect(asset.headers()["cache-control"]).toContain("immutable");
+  // Cross-origin isolated, so the speech worker's WASM gets threads.
+  expect(page.headers()["cross-origin-embedder-policy"]).toBe("require-corp");
+  expect(page.headers()["cross-origin-opener-policy"]).toBe("same-origin");
+});
+
+test("serves the speech model from the app, cached for good, and 404s a file it hasn't got @smoke", async ({ request }) => {
+  const model = JSON.parse(readFileSync(new URL("../../../apps/web/speech-model.json", import.meta.url), "utf8")) as {
+    dir: string;
+    files: Record<string, string>;
+  };
+  for (const file of Object.keys(model.files)) {
+    const res = await request.head(`/models/${model.dir}/${file}`);
+    expect(res.status(), file).toBe(200);
+    expect(res.headers()["cache-control"]).toContain("immutable");
+  }
+  // Not the app shell, which would look like a file to the model loader.
+  expect((await request.get(`/models/${model.dir}/missing.json`)).status()).toBe(404);
 });
 
 test("saves an item to the data directory and deletes it again @smoke", async ({ request }) => {
