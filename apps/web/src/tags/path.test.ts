@@ -50,6 +50,21 @@ describe("suggestTags", () => {
     expect(suggestTags(existing, "shed", [["Location", "Shed"]])).toEqual([{ path: ["shed"], isNew: true }]);
   });
 
+  it("offers to create a loose path inside the nested tag it starts with, before the literal path", () => {
+    expect(suggestTags(existing, "shed/Top shelf", [])).toEqual([
+      { path: ["Location", "Shed", "Top shelf"], isNew: true },
+      { path: ["shed", "Top shelf"], isNew: true },
+    ]);
+  });
+
+  it("keeps a path starting with a top-level tag's name as typed", () => {
+    expect(suggestTags([...existing, ["Shed"]], "Shed/Top shelf", [])).toEqual([{ path: ["Shed", "Top shelf"], isNew: true }]);
+    expect(suggestTags(existing, "Camping/Chairs", [])).toEqual([
+      { path: ["Type", "Camping", "Chairs"], isNew: true },
+      { path: ["Camping", "Chairs"], isNew: true },
+    ]);
+  });
+
   it("suggests nothing for blank text", () => {
     expect(suggestTags(existing, " / ", [])).toEqual([]);
   });

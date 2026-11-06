@@ -7,11 +7,11 @@ import { DraftCard } from "./DraftCard";
 
 // Holds the draft the way the review screen does: onChange may be called
 // more than once in one event, and each call must build on the last.
-function Harness() {
+function Harness({ existing = [["Location", "Shed", "Top shelf"]] }: { existing?: string[][] }) {
   const [form, setForm] = useState<ItemForm>({ ...emptyForm(), name: "Tent", litres: "60" });
   return (
     <DraftCard form={form} onChange={setForm} onRemove={() => {}} errors={{}} defaultOpen
-      existingTags={[["Location", "Shed", "Top shelf"]]} />
+      existingTags={existing} />
   );
 }
 
@@ -30,4 +30,16 @@ it("adds a typed new tag path to a draft on Enter", async () => {
   render(<Harness />);
   await user.type(screen.getByRole("combobox", { name: "Tags" }), "Location/Loft{Enter}");
   expect(screen.getByRole("list", { name: "Chosen tags" })).toHaveTextContent("Loft");
+});
+
+it("puts a loose path typed from a nested tag's name inside that tag on Enter", async () => {
+  const user = userEvent.setup();
+  render(<Harness existing={[["Location"], ["Location", "Shed"]]} />);
+  await user.type(screen.getByRole("combobox", { name: "Tags" }), "shed/Top shelf");
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+    "Create “Location › Shed › Top shelf”",
+    "Create “shed › Top shelf”",
+  ]);
+  await user.keyboard("{Enter}");
+  expect(screen.getByRole("list", { name: "Chosen tags" })).toHaveTextContent("Location › Shed › Top shelf");
 });

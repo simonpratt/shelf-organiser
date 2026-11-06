@@ -44,8 +44,11 @@ export type Suggestion = { path: TagPath; isNew: boolean };
 
 /**
  * Options for the tag field as the user types: existing tags whose path
- * contains the text, then, unless the text names an existing tag, an option
- * to create it. Tags already chosen are left out.
+ * contains the text; then, when the first name typed is a nested tag ("Shed"
+ * in "Shed/Top shelf") and no top-level tag has it, options to create the
+ * rest inside it ("Location › Shed › Top shelf"); then, unless the text names
+ * an existing tag, an option to create exactly what was typed. Tags already
+ * chosen are left out.
  */
 export function suggestTags(
   existing: readonly TagPath[],
@@ -63,6 +66,14 @@ export function suggestTags(
     .sort((a, b) => a.length - b.length)
     .slice(0, limit)
     .map((path) => ({ path, isNew: false }));
+  const [first, ...rest] = typed;
+  const isFirst = (name: string | undefined) => name?.toLowerCase() === first!.toLowerCase();
+  if (rest.length > 0 && !existing.some((p) => p.length === 1 && isFirst(p[0]))) {
+    for (const anchor of existing.filter((p) => p.length > 1 && isFirst(p[p.length - 1])).slice(0, 2)) {
+      const full = [...anchor, ...rest];
+      if (!existing.some((p) => samePath(p, full)) && !isChosen(full)) matches.push({ path: full, isNew: true });
+    }
+  }
   const exists = existing.some((p) => samePath(p, typed));
   if (!exists && !isChosen(typed)) matches.push({ path: typed, isNew: true });
   return matches;
