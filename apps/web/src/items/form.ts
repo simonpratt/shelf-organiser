@@ -50,13 +50,25 @@ export function hasTagIn(tags: TagPath[], dimension: string | null): boolean {
   return dimension !== null && tags.some((t) => t[0]?.toLowerCase() === dimension.toLowerCase());
 }
 
+// The names the server takes as the Type and Location dimensions before one
+// is remembered (typeNames and locationNames in store/tags.go).
+const typeNames = ["type", "kind", "category"];
+const locationNames = ["location", "place", "room", "where"];
+
 /**
  * The tags Save and add another keeps for the next item, which is usually
  * from the same shelf but rarely the same kind of thing, or the same plan
- * for it: only those in the Location dimension (none while there is none).
+ * for it: only those in the Location dimension. Before there is one, those in
+ * the dimension the save starts it from, as the server picks it: one named
+ * like Location, else the first tag outside the Type dimension.
  */
-export function carriedTags(tags: TagPath[], location: string | null): TagPath[] {
-  return tags.filter((t) => hasTagIn([t], location));
+export function carriedTags(tags: TagPath[], location: string | null, type: string | null = null): TagPath[] {
+  const tops = tags.map((t) => t[0]?.toLowerCase() ?? "");
+  const isType = (top: string) => (type !== null ? top === type.toLowerCase() : typeNames.includes(top));
+  const dimension = location?.toLowerCase()
+    ?? locationNames.find((n) => tops.includes(n))
+    ?? tops.find((top) => top !== "" && !isType(top));
+  return dimension === undefined ? [] : tags.filter((t) => hasTagIn([t], dimension));
 }
 
 export function toInput(form: ItemForm): { input?: ItemInput; errors: FormErrors } {

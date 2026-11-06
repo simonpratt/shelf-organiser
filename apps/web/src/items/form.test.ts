@@ -37,7 +37,17 @@ it("round-trips an item into the form", () => {
 it("carries only the Location dimension's tags to the next item", () => {
   const tags = [["Location", "Shed", "Wall rack"], ["Type", "Tools", "Power tools"], ["Plan", "Sell"]];
   expect(carriedTags(tags, "location")).toEqual([["Location", "Shed", "Wall rack"]]);
-  expect(carriedTags(tags, null)).toEqual([]);
+  expect(carriedTags([["Plan", "Sell"]], "Location")).toEqual([]);
+});
+
+it("before there is a Location dimension, carries the tags the save starts it from", () => {
+  // A fresh install: the first tag outside the Type dimension, as the server picks it.
+  expect(carriedTags([["Type", "Tools"], ["Shed", "Shelf 1"], ["Plan", "Sell"]], null)).toEqual([["Shed", "Shelf 1"]]);
+  expect(carriedTags([["Stuff", "Tools"], ["Shed", "Shelf 1"]], null, "Stuff")).toEqual([["Shed", "Shelf 1"]]);
+  // A tag named like Location wins, as on the server.
+  expect(carriedTags([["Plan", "Sell"], ["Location", "Shed"], ["Location", "Garage"]], null)).toEqual([["Location", "Shed"], ["Location", "Garage"]]);
+  expect(carriedTags([["Type", "Tools"]], null)).toEqual([]);
+  expect(carriedTags([], null)).toEqual([]);
 });
 
 it("names the Location dimension the server marked, or none", () => {

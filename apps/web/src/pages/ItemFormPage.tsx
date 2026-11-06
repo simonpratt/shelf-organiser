@@ -85,7 +85,8 @@ function Editor({ item }: { item?: Item }) {
       const saved = await save.mutateAsync(input);
       if (another) {
         // The save has refreshed the tags, which may have just started a Location dimension.
-        setForm(emptyForm(carriedTags(input.tags, locationDimension(qc.getQueryData<Tag[]>(tagKeys.all)))));
+        const fresh = qc.getQueryData<Tag[]>(tagKeys.all);
+        setForm(emptyForm(carriedTags(input.tags, locationDimension(fresh), typeDimension(fresh))));
         toast({ message: `Saved “${saved.name}”. Add the next one.` });
         nameRef.current?.focus();
       } else {
@@ -130,7 +131,7 @@ function Editor({ item }: { item?: Item }) {
         actions={item && <Button variant="danger" busy={remove.isPending} disabled={busy} onClick={onDelete}>Delete</Button>} />
       {/* Hidden, not disabled, without an API key: typed entry is the whole app then. */}
       {!item && claude.data?.enabled && (
-        <Button to="/items/dictate" state={{ tags: carriedTags(form.tags, location) } satisfies DictateState}
+        <Button to="/items/dictate" state={{ tags: carriedTags(form.tags, location, dimension) } satisfies DictateState}
           block size="lg" icon={<MicIcon />}>Dictate items</Button>
       )}
       <TextField ref={nameRef} label="Name" value={form.name} onChange={set("name")} error={errors.name}

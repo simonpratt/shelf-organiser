@@ -129,7 +129,8 @@ function Dictation() {
     // On to the next item from the same place, as Save and add another does,
     // in place of the dictation so Back doesn't reopen an empty one. The save
     // has refreshed the tags, which may have just started a Location dimension.
-    const tags = carriedTags(sharedTags, locationDimension(qc.getQueryData<Tag[]>(tagKeys.all)));
+    const fresh = qc.getQueryData<Tag[]>(tagKeys.all);
+    const tags = carriedTags(sharedTags, locationDimension(fresh), typeDimension(fresh));
     navigate("/items/new", { replace: true, state: { tags } satisfies DictateState });
   };
 

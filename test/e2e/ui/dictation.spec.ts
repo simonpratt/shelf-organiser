@@ -85,6 +85,28 @@ test("starts a dictation with the Add form's location and puts it on every draft
   });
 });
 
+test("on a fresh install, carries the location set on the Add form through a dictation and back", async ({ page, request }) => {
+  // No tags at all yet, so there is no Location dimension until this save starts one.
+  await page.goto("/items/new");
+  await page.getByRole("combobox", { name: "Tags" }).fill("Location/Shed/Shelf 1");
+  await page.getByRole("combobox", { name: "Tags" }).press("Enter");
+
+  await page.getByRole("link", { name: "Dictate items" }).click();
+  const shared = page.getByRole("list", { name: "Chosen tags for every item" });
+  await expect(shared).toContainText("Location › Shed › Shelf 1");
+  await page.getByLabel("What's here?").fill("lawn mower, two camping chairs");
+  await page.getByRole("button", { name: "Make drafts" }).click();
+  await page.getByRole("button", { name: "Save all 2 items" }).click();
+  await expect(page.getByRole("heading", { name: "Add item" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Chosen tags" })).toHaveText("Location › Shed › Shelf 1");
+
+  const saved = (await listItems(request)).map((i) => [i.name, i.tags.map((t) => t.path.join("/"))]);
+  expect(saved).toEqual([
+    ["Lawn mower", ["Location/Shed/Shelf 1"]],
+    ["Camping chairs", ["Location/Shed/Shelf 1"]],
+  ]);
+});
+
 test("falls back to typing when the microphone is blocked", async ({ page }) => {
   await page.addInitScript(() => {
     navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException("Permission denied", "NotAllowedError"));
