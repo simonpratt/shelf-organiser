@@ -14,6 +14,7 @@ describe("toInput", () => {
     const { input, errors } = toInput({ ...emptyForm(), litres: "0", quantity: "1.5" });
     expect(input).toBeUndefined();
     expect(Object.keys(errors).sort()).toEqual(["litres", "name", "quantity"]);
+    expect(errors.litres).toBe("Must be more than 0");
   });
 
   it("keeps text left in the tag field as a tag", () => {

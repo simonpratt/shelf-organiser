@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatLitres, parseLitres, presetFor, totalLitres } from "./size";
+import { checkLitres, formatLitres, parseLitres, presetFor, totalLitres } from "./size";
 
 describe("parseLitres", () => {
   it.each([
@@ -31,5 +31,20 @@ describe("sizes", () => {
     expect(presetFor(40)?.id).toBe("crate");
     expect(presetFor(41)).toBeUndefined();
     expect(presetFor(null)).toBeUndefined();
+  });
+});
+
+describe("checkLitres", () => {
+  it("says zero can't be saved", () => {
+    expect(checkLitres("0")).toEqual({ error: "Must be more than 0" });
+    expect(checkLitres("0,0")).toEqual({ error: "Must be more than 0" });
+  });
+  it("gently questions a size above 1,000 L but not one at it", () => {
+    expect(checkLitres("99999").note).toMatch(/check the number/);
+    expect(checkLitres("1000")).toEqual({});
+  });
+  it("says nothing while blank or not yet a number", () => {
+    expect(checkLitres("")).toEqual({});
+    expect(checkLitres("2.")).toEqual({});
   });
 });

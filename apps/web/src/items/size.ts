@@ -31,8 +31,26 @@ export function totalLitres(item: { litres: number; quantity: number }): number 
 
 /** Parses a typed volume, accepting a decimal comma; null unless it is a positive number. */
 export function parseLitres(draft: string): number | null {
+  const n = parseNumber(draft);
+  return n !== null && n > 0 ? n : null;
+}
+
+function parseNumber(draft: string): number | null {
   const text = draft.trim().replace(",", ".");
-  if (!/^\d*\.?\d+$|^\d+\.$/.test(text)) return null;
-  const n = Number(text);
-  return n > 0 ? n : null;
+  return /^\d*\.?\d+$|^\d+\.$/.test(text) ? Number(text) : null;
+}
+
+/** Above this a typed size is more likely a slip than a real item. */
+export const LARGE_LITRES = 1000;
+
+/**
+ * What to say under typed litres as they are typed: an error for zero, which
+ * can't be saved, or a gentle note on a size so big it is probably a slip
+ * (it can still be saved).
+ */
+export function checkLitres(draft: string): { error?: string; note?: string } {
+  const n = parseNumber(draft);
+  if (n === 0) return { error: "Must be more than 0" };
+  if (n !== null && n > LARGE_LITRES) return { note: "That's bigger than a car boot — check the number?" };
+  return {};
 }
