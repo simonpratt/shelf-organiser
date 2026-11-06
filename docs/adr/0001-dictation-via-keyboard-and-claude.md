@@ -1,3 +1,7 @@
+---
+status: speech-to-text superseded by ADR 0003 (Whisper in the browser); Claude reading the text into drafts stands
+---
+
 # Dictation uses the phone keyboard's speech-to-text, then Claude
 
 Dictation needs speech-to-text and then parsing into item drafts. The Claude API takes text, images and PDFs but not audio, so it can't do both in one call.
