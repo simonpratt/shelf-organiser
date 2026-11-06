@@ -5,7 +5,7 @@
 
 # 1. Build the web app. Its output is the same on every platform. pnpm checks the
 # lockfile against every workspace package, so each one's package.json is copied.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:25-alpine AS web
 RUN corepack enable
 WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
