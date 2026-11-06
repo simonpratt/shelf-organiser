@@ -32,6 +32,7 @@ const maxDrafts = 50
 
 const dictationPrompt = `You turn a dictated list of things stored in a shed or back room into item drafts the user will review before saving.
 
+- The text usually comes from speech recognition, so it may have sound-alike mistakes ("long mower" for lawn mower, "mics" for bikes): read each item as the shed or household thing that was most plausibly said, and name it correctly.
 - One item per distinct kind of thing: "two camping chairs" is one item with quantity 2. Apply spoken corrections ("no, three of them").
 - name: short and plain, sentence case, without the quantity ("Camping chairs").
 - litres: your best estimate of the space ONE unit takes up in storage, in litres. A shoebox is about 10, a milk crate 40, a moving box 120, a bike 500. Use null only when nothing said gives any idea of its size.
