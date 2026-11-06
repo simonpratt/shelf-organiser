@@ -217,7 +217,8 @@ function VoiceNotice({ voice: { mic, model }, onRetry }: { voice: Voice; onRetry
   const notice = mic.status === "idle" || mic.status === "writing" ? mic.notice : undefined;
   return (
     <>
-      {model.status === "loading" && (
+      {/* Loading from the cache reports no download, so shows no bar. */}
+      {model.status === "loading" && model.total > 0 && (
         <ProgressBar label="Getting speech recognition ready" value={model.total ? model.loaded / model.total : 0}
           detail={downloadLabel(model.loaded, model.total)} />
       )}
