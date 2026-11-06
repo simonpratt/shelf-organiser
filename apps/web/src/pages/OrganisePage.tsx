@@ -86,9 +86,8 @@ function Organise() {
             Claude reads all {count === 1 ? "1 item" : `${count} items`}, biggest first. You check every proposal before anything changes.
           </p>
         )}
-        {organise.error && <Banner>{organise.error.message}</Banner>}
         <div className="flex-1" />
-        <ActionBar>
+        <ActionBar notice={organise.error && <Banner>{organise.error.message}</Banner>}>
           <Button variant="primary" block icon={<SparkleIcon />} busy={organise.isPending} disabled={count === 0}
             onClick={onPropose}>
             {organise.isPending ? "Reading…" : "Propose tags"}
@@ -137,10 +136,9 @@ function Organise() {
           {remainingNote(remaining, capped, dimension)}
         </Banner>
       )}
-      {apply.error && <Banner>Couldn't apply: {apply.error.message}</Banner>}
       <div className="flex-1" />
       {rows.length > 0 && (
-        <ActionBar>
+        <ActionBar notice={apply.error && <Banner>Couldn't apply: {apply.error.message}</Banner>}>
           <Button variant="primary" block busy={apply.isPending} disabled={assignments.length === 0} onClick={onApply}>
             {assignments.length === 1 ? "Apply to 1 item" : `Apply to ${assignments.length} items`}
           </Button>

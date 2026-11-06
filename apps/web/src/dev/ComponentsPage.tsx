@@ -205,6 +205,7 @@ export default function ComponentsPage() {
       <Section title="Fab"><Frame><Fab to="#" label="Add item" icon={<PlusIcon />} /></Frame></Section>
       <Section title="ActionBar">
         <ActionBar><Button variant="primary" block>Save</Button><Button block>Save and add another</Button></ActionBar>
+        <ActionBar notice={<Banner>Couldn't save: Failed to fetch</Banner>}><Button variant="primary" block>Save</Button></ActionBar>
       </Section>
       <Section title="AppShell"><p className="text-muted">This page is rendered inside AppShell (without the nav).</p></Section>
     </AppShell>

@@ -90,6 +90,17 @@ test("offers a new shelf's name next to the shelf just removed", async ({ page, 
   await expect(page.getByRole("list", { name: "Chosen tags" })).toHaveText("Location › Shed › Shelf 3New");
 });
 
+test("shows a failed save beside the Save button, wherever the form is scrolled", async ({ page }) => {
+  await page.goto("/items/new");
+  await page.getByLabel("Name").fill("Tent");
+  await page.getByRole("radio", { name: /Crate/ }).click();
+  await page.route("**/api/items", (route) => route.abort());
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Couldn't save");
+  await expect(page.getByRole("alert")).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+});
+
 test("loads the item list @smoke", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Items" })).toBeVisible();

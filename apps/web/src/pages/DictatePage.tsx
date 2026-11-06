@@ -133,9 +133,8 @@ function Dictation() {
           hint="Say one thing after another. Mention where things are, or what kind, and Claude picks matching tags." />
         {sharedField}
         {nothingFound && <Banner tone="info">Claude didn't find any items in that. Try naming the things you can see.</Banner>}
-        {draftItems.error && <Banner>{draftItems.error.message}</Banner>}
         <div className="flex-1" />
-        <ActionBar>
+        <ActionBar notice={draftItems.error && <Banner>{draftItems.error.message}</Banner>}>
           <Button type="submit" variant="primary" block busy={draftItems.isPending} disabled={!transcript.trim()}>
             {draftItems.isPending ? "Reading…" : "Make drafts"}
           </Button>
@@ -165,9 +164,8 @@ function Dictation() {
             typeDimension={typeDimension(tags.data)} propose={(form) => proposeTags({ name: form.name, note: form.note, tags: form.tags })} />
         ))
       )}
-      {saveError && <Banner>{saveError}</Banner>}
       <div className="flex-1" />
-      <ActionBar>
+      <ActionBar notice={saveError && <Banner>{saveError}</Banner>}>
         <Button variant="primary" block busy={saving} disabled={drafts.length === 0} onClick={onSaveAll}>
           {drafts.length === 1 ? "Save 1 item" : `Save all ${drafts.length} items`}
         </Button>

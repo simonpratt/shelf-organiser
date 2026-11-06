@@ -146,9 +146,10 @@ function Editor({ item }: { item?: Item }) {
       )}
       <TextField label="Note (optional)" multiline value={form.note} onChange={set("note")} />
       <div className="flex-1" />
-      {save.error && <Banner>Couldn't save: {save.error.message}</Banner>}
-      {remove.error && <Banner>Couldn't delete: {remove.error.message}</Banner>}
-      <ActionBar>
+      <ActionBar notice={<>
+        {save.error && <Banner>Couldn't save: {save.error.message}</Banner>}
+        {remove.error && <Banner>Couldn't delete: {remove.error.message}</Banner>}
+      </>}>
         <Button type="submit" variant="primary" block busy={save.isPending && mode === "save"} disabled={busy}
           value="save">Save</Button>
         {!item && (
