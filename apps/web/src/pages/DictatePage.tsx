@@ -144,7 +144,7 @@ function Dictation() {
         {support === null ? (
           <div className="flex flex-col gap-3">
             <RecordButton status={voice.mic.status} startedAt={voice.mic.status === "listening" ? voice.mic.startedAt : undefined}
-              disabled={voice.model.status === "failed"}
+              unavailable={voice.model.status === "failed" ? "Speaking isn't available until speech recognition downloads" : undefined}
               onPress={(now) => dispatch({ type: "press", now })} onRelease={(now) => dispatch({ type: "release", now })} />
             <VoiceNotice voice={voice} onRetry={() => dispatch({ type: "load" })} />
           </div>
@@ -206,7 +206,12 @@ function Dictation() {
 /** What the microphone and the speech model are up to, when there is something to say. */
 function VoiceNotice({ voice: { mic, model }, onRetry }: { voice: Voice; onRetry: () => void }) {
   if (model.status === "failed") {
-    return <Banner action={<Button onClick={onRetry}>Retry</Button>}>Couldn't get speech recognition ready: {model.message}</Banner>;
+    // The library's own message (a missing file, a failed fetch) means nothing here.
+    return (
+      <Banner action={<Button onClick={onRetry}>Retry</Button>}>
+        Couldn't download speech recognition. Check you're on home Wi-Fi, then Retry — or type below.
+      </Banner>
+    );
   }
   if (mic.status === "idle" && mic.error) return <Banner>Couldn't hear that: {mic.error}</Banner>;
   const notice = mic.status === "idle" || mic.status === "writing" ? mic.notice : undefined;

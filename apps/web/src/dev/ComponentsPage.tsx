@@ -113,7 +113,7 @@ export default function ComponentsPage() {
           <RecordButton key={status} status={status} startedAt={status === "listening" ? listeningSince : undefined}
             onPress={() => {}} onRelease={() => {}} />
         ))}
-        <RecordButton status="idle" disabled onPress={() => {}} onRelease={() => {}} />
+        <RecordButton status="idle" unavailable="Speaking isn't available right now" onPress={() => {}} onRelease={() => {}} />
       </Section>
       <Section title="TextField">
         <TextField label="Name" value={text} onChange={setText} />

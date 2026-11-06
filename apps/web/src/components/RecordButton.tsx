@@ -13,7 +13,8 @@ type Props = {
   startedAt?: number;
   onPress: (now: number) => void;
   onRelease: (now: number) => void;
-  disabled?: boolean;
+  /** Disables the button, saying why in place of the usual caption. */
+  unavailable?: string;
 };
 
 const captions = {
@@ -23,7 +24,7 @@ const captions = {
   writing: "Writing it down…",
 };
 
-export function RecordButton({ status, startedAt, onPress, onRelease, disabled }: Props) {
+export function RecordButton({ status, startedAt, onPress, onRelease, unavailable }: Props) {
   const listening = status === "listening";
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -35,7 +36,7 @@ export function RecordButton({ status, startedAt, onPress, onRelease, disabled }
   return (
     <div className="flex flex-col items-center gap-3 py-2">
       <button type="button" aria-label="Speak" aria-pressed={listening}
-        disabled={disabled || status === "asking" || status === "writing"}
+        disabled={unavailable !== undefined || status === "asking" || status === "writing"}
         onPointerDown={(e) => e.isPrimary && e.button === 0 && onPress(Date.now())}
         onPointerUp={release} onPointerCancel={release}
         // A keyboard press arrives as a click with no pointer events.
@@ -50,7 +51,7 @@ export function RecordButton({ status, startedAt, onPress, onRelease, disabled }
       </button>
       <p aria-live="polite" className="text-center text-sm text-muted">
         {listening && startedAt !== undefined && <span className="mr-2 font-mono text-text">{elapsedLabel(now - startedAt)}</span>}
-        {captions[status]}
+        {unavailable ?? captions[status]}
       </p>
     </div>
   );

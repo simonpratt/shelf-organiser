@@ -118,3 +118,18 @@ test("falls back to typing when the microphone is blocked", async ({ page }) => 
   await page.getByRole("button", { name: "Make drafts" }).click();
   await expect(page.getByRole("article", { name: "Lamp" })).toBeVisible();
 });
+
+test("says plainly when speech recognition can't download, and offers Retry and typing", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.shelfFakeTranscriber = {
+      load: () => Promise.reject(new Error("local_files_only=true and file was not found locally: config.json")),
+      transcribe: () => Promise.resolve(""),
+    };
+  });
+  await page.goto("/items/dictate");
+  await expect(page.getByText("Couldn't download speech recognition. Check you're on home Wi-Fi")).toBeVisible();
+  await expect(page.getByText("config.json")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Speak" })).toBeDisabled();
+  await expect(page.getByText("Speaking isn't available until speech recognition downloads")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+});
