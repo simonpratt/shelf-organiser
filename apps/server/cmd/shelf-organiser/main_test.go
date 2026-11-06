@@ -346,9 +346,14 @@ func TestLoginGuardsTheAPIAndKeepsTheBrowserLoggedInUntilLogout(t *testing.T) {
 			t.Errorf("GET %s logged out = %d %s; want 401 unauthorized", path, code, body)
 		}
 	}
-	for _, path := range []string{"/healthz", "/", "/login"} {
-		if code, _, _ := call("GET", path, ""); code != 200 {
-			t.Errorf("GET %s logged out = %d; want 200", path, code)
+	if code, _, _ := call("GET", "/healthz", ""); code != 200 {
+		t.Errorf("GET /healthz logged out = %d; want 200", code)
+	}
+	// The client may not be built (CI's checks job runs go test without it,
+	// so these 503), but the login must never guard it.
+	for _, path := range []string{"/", "/login"} {
+		if code, _, _ := call("GET", path, ""); code == 401 {
+			t.Errorf("GET %s logged out = 401; want the client unguarded", path)
 		}
 	}
 	if code, _, _ := call("POST", "/api/test/reset", ""); code != 204 {
