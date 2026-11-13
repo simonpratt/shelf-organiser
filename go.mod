@@ -3,14 +3,14 @@ module shelf-organiser
 go 1.27.3
 
 require (
+	github.com/anthropics/anthropic-sdk-go v1.84.0
 	github.com/oapi-codegen/runtime v1.8.0
 	github.com/oasdiff/yaml v0.1.3
 	github.com/pressly/goose/v3 v3.29.0
-	modernc.org/sqlite v1.61.1
+	modernc.org/sqlite v1.62.0
 )
 
 require (
-	github.com/anthropics/anthropic-sdk-go v1.84.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
@@ -55,7 +55,7 @@ require (
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
